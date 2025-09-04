@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import ApiKeyForm from './components/ApiKeyForm';
 import Dashboard from './components/Dashboard';
-import CorsHelper from './components/CorsHelper';
 import BinanceAPI from './utils/binanceApi';
 import './App.css';
 
@@ -9,12 +8,10 @@ function App() {
   const [binanceApi, setBinanceApi] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [showCorsHelper, setShowCorsHelper] = useState(false);
 
   const handleApiSubmit = async ({ apiKey, apiSecret }) => {
     setLoading(true);
     setError(null);
-    setShowCorsHelper(false);
 
     try {
       const api = new BinanceAPI(apiKey, apiSecret, false, false);
@@ -30,11 +27,6 @@ function App() {
   const handleLogout = () => {
     setBinanceApi(null);
     setError(null);
-    setShowCorsHelper(false);
-  };
-
-  const handleCloseCorsHelper = () => {
-    setShowCorsHelper(false);
   };
 
   if (binanceApi) {
@@ -49,7 +41,6 @@ function App() {
           <p>{error}</p>
         </div>
       )}
-      {showCorsHelper && <CorsHelper onClose={handleCloseCorsHelper} />}
     </div>
   );
 }

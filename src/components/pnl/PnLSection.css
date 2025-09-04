@@ -1,0 +1,235 @@
+/* PnL Section inherits styles from expanded-section */
+
+.pnl-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.pnl-card {
+  text-align: center;
+  padding: 2rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pnl-card h3 {
+  color: #4a5568;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.pnl-value {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+}
+
+.pnl-value.positive {
+  color: #38a169;
+}
+
+.pnl-value.negative {
+  color: #e53e3e;
+}
+
+.pnl-percentage {
+  color: #718096;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.current-positions {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.current-positions h4 {
+  color: #2d3748;
+  margin-bottom: 0.5rem;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.futures-description {
+  color: #718096;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.positions-table-container {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.futures-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.futures-table th {
+  background: rgba(102, 126, 234, 0.1);
+  color: #4a5568;
+  padding: 1rem 0.75rem;
+  text-align: center !important; /* Force center align headers */
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.futures-table th:first-child {
+  text-align: left !important; /* Keep symbol column left-aligned */
+}
+
+.futures-table th.sortable {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  user-select: none;
+}
+
+.futures-table th.sortable:hover {
+  background: rgba(102, 126, 234, 0.2);
+  color: #2d3748;
+}
+
+.futures-table td {
+  padding: 1rem 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: #4a5568;
+  font-weight: 600;
+  vertical-align: middle;
+  text-align: center !important; /* Force center align all data */
+}
+
+.futures-table td:first-child {
+  text-align: left !important; /* Keep symbol column left-aligned */
+}
+
+.futures-table tr:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.symbol {
+  font-weight: 700;
+  color: #2d3748;
+  font-family: 'Courier New', monospace;
+  text-align: left; /* Keep symbols left-aligned */
+}
+
+.side {
+  font-weight: 700;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  text-align: center;
+  display: inline-block; /* Ensure proper centering */
+  min-width: 60px;
+}
+
+.side-long {
+  background: rgba(56, 161, 105, 0.2);
+  color: #38a169;
+  border: 1px solid rgba(56, 161, 105, 0.3);
+}
+
+.side-short {
+  background: rgba(229, 62, 62, 0.2);
+  color: #e53e3e;
+  border: 1px solid rgba(229, 62, 62, 0.3);
+}
+
+.profit {
+  color: #38a169;
+  font-weight: 700;
+}
+
+.loss {
+  color: #e53e3e;
+  font-weight: 700;
+}
+
+.pnl-breakdown {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pnl-breakdown h4 {
+  color: #2d3748;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.pnl-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.pnl-item:last-child {
+  border-bottom: none;
+}
+
+.pnl-item span:first-child {
+  color: #718096;
+  font-weight: 600;
+}
+
+.pnl-item span:last-child {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.pnl-item .positive {
+  color: #38a169;
+}
+
+.pnl-item .negative {
+  color: #e53e3e;
+}
+
+/* Dark mode adjustments */
+.dark-mode .pnl-card h3 {
+  color: #cbd5e0;
+}
+
+.dark-mode .current-positions h4 {
+  color: #e2e8f0;
+}
+
+.dark-mode .futures-table th {
+  color: #cbd5e0;
+}
+
+.dark-mode .futures-table th.sortable:hover {
+  color: #f7fafc;
+}
+
+.dark-mode .futures-table td {
+  color: #cbd5e0;
+}
+
+.dark-mode .symbol {
+  color: #e2e8f0;
+}
+
+.dark-mode .pnl-breakdown h4 {
+  color: #e2e8f0;
+}
+
+.dark-mode .pnl-item span:first-child {
+  color: #a0aec0;
+}

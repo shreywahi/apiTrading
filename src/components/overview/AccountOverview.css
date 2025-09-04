@@ -1,0 +1,117 @@
+.overview-section {
+  margin-bottom: 2rem;
+  margin-top: 0;
+}
+
+.overview-section h2 {
+  color: #2d3748;
+  margin: 0 0 1.5rem 0;
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.overview-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 2rem;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.overview-card.clickable {
+  cursor: pointer;
+}
+
+.overview-card.clickable:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.overview-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+}
+
+.card-icon {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.card-content h3 {
+  color: #2d3748;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.card-content .value {
+  color: #1a202c;
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.card-content .value.orders-count {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.card-content .value.positive {
+  color: #38a169;
+}
+
+.card-content .value.negative {
+  color: #e53e3e;
+}
+
+.card-content .sub-value {
+  color: #718096;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+  display: block;
+}
+
+/* Dark mode adjustments */
+.dark-mode .overview-section h2 {
+  color: #e2e8f0;
+}
+
+.dark-mode .card-content h3 {
+  color: #e2e8f0;
+}
+
+.dark-mode .card-content .value {
+  color: #f7fafc;
+}
+
+.dark-mode .card-content .sub-value {
+  color: #a0aec0;
+}
+
+.dark-mode .card-content .value.orders-count {
+  color: #f7fafc;
+}

@@ -1,6 +1,6 @@
 # Trading Dashboard
 
-A comprehensive React web application that displays your Binance trading portfolio, P&L, and order history with support for both **Spot** and **Futures** trading when you enter your API credentials.
+A comprehensive React web application that displays your trading portfolio, P&L, and order history with support for both **Spot** and **Futures** trading when you enter your API credentials.
 
 ## ✨ Features
 
@@ -10,13 +10,27 @@ A comprehensive React web application that displays your Binance trading portfol
 - **📈 Enhanced P&L Tracking**: Real portfolio valuation with current market prices
 - **📋 Comprehensive Order History**: Recent orders from both Spot and Futures markets
 - **🔄 Real-time Data**: Automatic price fetching and refresh functionality
-- **🎨 Professional UI**: Clean, responsive design that works on all devices
+- **🎨 Professional UI**: Clean, responsive design with cosmic background theme
 - **🛡️ Security First**: API credentials are only used locally and never stored
 - **🚀 Localhost Support**: Full proxy configuration for local development
-- **🔧 API Testing**: Built-in credential testing with detailed diagnostics
+- **⚡ Modular Architecture**: Clean, maintainable component structure
+- **🌟 Advanced Features**: Auto-refresh timer, currency conversion, table sorting
 
-## 🔥 Recent Improvements
+## 🔥 Recent Major Updates
 
+### **Architecture Refactoring (Latest)**
+- ✅ **Complete Dashboard Refactoring**: Broke down 1455-line monolithic component into modular architecture
+- ✅ **Custom Hooks Implementation**: Separated data logic into reusable hooks (useDashboardData, useSorting, useAutoRefresh, useCurrency)
+- ✅ **Component Modularity**: Created focused components for header, overview, portfolio, P&L, and orders
+- ✅ **Enhanced Table Alignment**: Fixed center alignment for all table data and headers
+- ✅ **Cosmic Background Restoration**: Fixed background rendering after refactoring
+- ✅ **Smart Auto-Refresh**: Timer now starts only after data loading completes
+- ✅ **Add API Button**: New button to open additional API key form in new tab
+- ✅ **Responsive Design**: Mobile-optimized layout with adaptive button sizing
+- ✅ **Codebase Cleanup**: Removed unused components and optimized bundle size
+- ✅ **Clean Architecture**: Streamlined imports and organized component structure
+
+### **Core Functionality Improvements**
 - ✅ **Fixed $0 Portfolio Value**: Now calculates real portfolio value using current market prices
 - ✅ **Added Futures Support**: Displays futures account balances and recent futures orders
 - ✅ **Enhanced Order History**: Shows both spot and futures orders with market indicators
@@ -56,6 +70,48 @@ npm run build
 ```
 
 The built files will be in the `dist` directory.
+
+## 🏗️ Architecture Overview
+
+### **Modular Component Structure**
+The application follows modern React best practices with a clean, modular architecture:
+
+```
+src/
+├── components/
+│   ├── common/                 # Reusable UI components
+│   │   ├── LoadingSpinner.jsx
+│   │   └── ErrorDisplay.jsx
+│   ├── layout/                 # Layout components
+│   │   └── DashboardHeader.jsx
+│   ├── overview/               # Account overview
+│   │   └── AccountOverview.jsx
+│   ├── portfolio/              # Portfolio management
+│   │   └── PortfolioSection.jsx
+│   ├── pnl/                   # P&L tracking
+│   │   └── PnLSection.jsx
+│   ├── orders/                # Order management
+│   │   └── OrdersSection.jsx
+│   ├── Dashboard.jsx           # Main orchestrator
+│   ├── ApiKeyForm.jsx          # API credential input
+│   ├── CosmicBackground.jsx    # Animated background
+│   └── index.js               # Component exports
+├── hooks/                     # Custom React hooks
+│   ├── useDashboardData.js    # API data management
+│   ├── useSorting.js          # Table sorting logic
+│   ├── useAutoRefresh.js      # Auto-refresh functionality
+│   └── useCurrency.js         # Currency conversion
+└── utils/                     # Utility functions
+    ├── binanceApi.js          # API integration
+    └── dashboardUtils.js      # Helper functions
+```
+
+### **Key Features**
+- **🎯 Single Responsibility**: Each component has a focused purpose
+- **🔄 Custom Hooks**: Logic separated into reusable hooks
+- **📱 Responsive Design**: Mobile-first approach with adaptive layouts
+- **🎨 Cosmic Theme**: Beautiful animated background with theme switching
+- **⚡ Performance**: Optimized rendering and state management
 
 ## 📊 What You'll See
 
@@ -152,6 +208,33 @@ The built files will be in the `dist` directory.
 - Real-time status of pending trades
 - Ability to see market vs. limit orders
 
+## 🎨 UI/UX Features
+
+### **Header Controls**
+- **🌙 Dark/Light Mode**: Toggle between cosmic dark theme and clean light theme
+- **🔄 Smart Auto-Refresh**: Timer that starts only after data loads (15-second intervals)
+- **💱 Currency Conversion**: Switch between USD, EUR, and INR display
+- **➕ Add API Button**: Open new tab to add additional API keys
+- **🚪 Logout**: Secure session termination
+
+### **Table Enhancements**
+- **📊 Center-Aligned Data**: All numerical data perfectly centered for easy scanning
+- **🔤 Left-Aligned Symbols**: Asset symbols remain left-aligned for readability
+- **📱 Responsive Design**: Tables adapt beautifully to mobile screens
+- **🎯 Visual Hierarchy**: Clear headers with proper typography sizing
+
+### **Interactive Elements**
+- **✨ Cosmic Background**: Animated starfield background with theme transitions
+- **📊 Clickable Overview Cards**: Click portfolio, P&L, or orders to expand sections
+- **🔄 Loading States**: Smooth loading animations and error handling
+- **⏱️ Real-time Timers**: Live countdown timers for auto-refresh functionality
+
+### **Data Organization**
+- **📈 Portfolio Tabs**: Separate views for Spot and Futures wallets
+- **📋 Order Tabs**: Multiple tabs for open orders, history, trades, transactions, and funding fees
+- **🎛️ Show/Hide Controls**: Toggle small balances and customize your view
+- **🔢 Smart Sorting**: Click column headers to sort by any data point
+
 ## Technology Stack
 
 - **Frontend**: React 18 with Vite
@@ -182,7 +265,7 @@ The built files will be in the `dist` directory.
 
 3. **"Network Error" or CORS Issues**:
    - **This is the most common issue in browser-based applications**
-   - The app will automatically show a CORS helper with instructions
+   - CORS errors occur when browsers block direct API calls to external domains
    - **Quick Solution**: Visit [CORS Anywhere Demo](https://cors-anywhere.herokuapp.com/corsdemo) and enable temporary access
    - **Alternative**: Use Binance Testnet (requires testnet API keys)
    - **Production**: Deploy with a backend server that proxies API calls

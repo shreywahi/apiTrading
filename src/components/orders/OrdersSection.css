@@ -1,0 +1,301 @@
+/* Orders Section inherits styles from expanded-section */
+
+.futures-tabs {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.futures-tab-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.futures-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  color: #718096;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.futures-tab-btn.active {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.futures-tab-btn:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #2d3748;
+  transform: translateY(-1px);
+}
+
+.futures-tab-content {
+  padding: 1.5rem;
+}
+
+.futures-table-container {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.futures-table-container h3 {
+  color: #2d3748;
+  margin-bottom: 0.5rem;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.futures-description {
+  color: #718096;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.futures-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.futures-table th {
+  background: rgba(102, 126, 234, 0.1);
+  color: #4a5568;
+  padding: 1rem 0.75rem;
+  text-align: center !important; /* Force center align headers */
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  white-space: nowrap;
+}
+
+.futures-table th:first-child {
+  text-align: left !important; /* Keep symbol column left-aligned */
+}
+
+.futures-table th.sortable {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  user-select: none;
+  position: relative;
+}
+
+.futures-table th.sortable:hover {
+  background: rgba(102, 126, 234, 0.2);
+  color: #2d3748;
+}
+
+.futures-table td {
+  padding: 1rem 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: #4a5568;
+  font-weight: 600;
+  vertical-align: middle;
+  font-size: 0.9rem;
+  text-align: center !important; /* Force center align all data */
+}
+
+.futures-table td:first-child {
+  text-align: left !important; /* Keep symbol column left-aligned */
+}
+
+.futures-table tr:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.futures-table tr:last-child td {
+  border-bottom: none;
+}
+
+.symbol {
+  font-weight: 700;
+  color: #2d3748;
+  font-family: 'Courier New', monospace;
+  font-size: 0.95rem;
+  text-align: left; /* Keep symbols left-aligned */
+}
+
+.side {
+  font-weight: 700;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  text-align: center;
+  display: inline-block;
+  min-width: 60px;
+}
+
+.side-buy, .side-long {
+  background: rgba(56, 161, 105, 0.2);
+  color: #38a169;
+  border: 1px solid rgba(56, 161, 105, 0.3);
+}
+
+.side-sell, .side-short {
+  background: rgba(229, 62, 62, 0.2);
+  color: #e53e3e;
+  border: 1px solid rgba(229, 62, 62, 0.3);
+}
+
+.profit {
+  color: #38a169;
+  font-weight: 700;
+}
+
+.loss {
+  color: #e53e3e;
+  font-weight: 700;
+}
+
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-block; /* Ensure proper centering */
+  text-align: center;
+}
+
+.status-filled {
+  background: rgba(56, 161, 105, 0.2);
+  color: #38a169;
+  border: 1px solid rgba(56, 161, 105, 0.3);
+}
+
+.status-partial {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+  border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.status-new {
+  background: rgba(66, 153, 225, 0.2);
+  color: #4299e1;
+  border: 1px solid rgba(66, 153, 225, 0.3);
+}
+
+.status-canceled {
+  background: rgba(160, 174, 192, 0.2);
+  color: #a0aec0;
+  border: 1px solid rgba(160, 174, 192, 0.3);
+}
+
+.status-rejected {
+  background: rgba(229, 62, 62, 0.2);
+  color: #e53e3e;
+  border: 1px solid rgba(229, 62, 62, 0.3);
+}
+
+.status-expired {
+  background: rgba(128, 90, 213, 0.2);
+  color: #805ad5;
+  border: 1px solid rgba(128, 90, 213, 0.3);
+}
+
+.status-default {
+  background: rgba(113, 128, 150, 0.2);
+  color: #718096;
+  border: 1px solid rgba(113, 128, 150, 0.3);
+}
+
+.no-orders {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #718096;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.no-orders p {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.section-description {
+  color: #a0aec0;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .futures-tab-buttons {
+    flex-direction: column;
+  }
+  
+  .futures-tab-btn {
+    justify-content: center;
+  }
+  
+  .futures-table-container {
+    overflow-x: auto;
+    padding: 1rem;
+  }
+  
+  .futures-table {
+    min-width: 800px;
+  }
+  
+  .futures-table th,
+  .futures-table td {
+    padding: 0.75rem 0.5rem;
+    font-size: 0.8rem;
+    text-align: center !important; /* Maintain center alignment on mobile */
+  }
+  
+  .futures-table th:first-child,
+  .futures-table td:first-child {
+    text-align: left !important; /* Keep symbol column left-aligned */
+  }
+}
+
+/* Dark mode adjustments */
+.dark-mode .futures-table-container h3 {
+  color: #e2e8f0;
+}
+
+.dark-mode .futures-table th {
+  color: #cbd5e0;
+}
+
+.dark-mode .futures-table th.sortable:hover {
+  color: #f7fafc;
+}
+
+.dark-mode .futures-table td {
+  color: #cbd5e0;
+}
+
+.dark-mode .symbol {
+  color: #e2e8f0;
+}
+
+.dark-mode .futures-tab-btn:hover:not(.active) {
+  color: #e2e8f0;
+}
