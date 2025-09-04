@@ -18,6 +18,13 @@ const CORS_PROXIES = [
   'https://cors-anywhere.herokuapp.com/'
 ];
 
+// Popular futures symbols used throughout the API calls
+const POPULAR_FUTURES_SYMBOLS = [
+  'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'XRPUSDT',
+  'XLMUSDT', 'BCHUSDT', 'AAVEUSDT', 'ALGOUSDT', 'HBARUSDT',
+  'SOLUSDT', 'PAXGUSDT', 'DOGEUSDT', 'AVAXUSDT', 'MATICUSDT'
+];
+
 class BinanceAPI {
   constructor(apiKey, apiSecret, useTestnet = false, useMockData = false) {
     this.apiKey = apiKey;
@@ -560,12 +567,7 @@ class BinanceAPI {
           const walletStatus = await this.makeRequest('/sapi/v1/account/status');
           console.log('Wallet status:', walletStatus);
           
-          // Try the asset distribution endpoint for total valuation
-          const userAsset = await this.makeRequest('/sapi/v3/asset/getUserAsset');
-          if (userAsset && Array.isArray(userAsset)) {
-            console.log('User asset data length:', userAsset.length);
-            console.log('Sample user assets:', userAsset.slice(0, 3));
-          }
+          // Skip getUserAsset endpoint as it may not be available for all accounts
           
         } catch (statusError) {
           console.warn('Additional portfolio APIs failed:', statusError.message);
@@ -890,54 +892,33 @@ class BinanceAPI {
   async getFuturesOrders(symbol = null, limit = 50) {
     try {
       if (!symbol) {
-        // Get futures account first to find active positions
+        // Strategy: Try to get comprehensive order history from multiple sources
+        const allOrders = [];
+        
+        // 1. Get futures account first to find active positions
         const futuresAccount = await this.getFuturesAccountInfo();
-        if (!futuresAccount) return [];
+        let symbolsToTry = [];
         
-        const activePositions = futuresAccount.positions
-          ?.filter(pos => parseFloat(pos.positionAmt) !== 0)
-          ?.map(pos => pos.symbol)
-          ?.slice(0, 5) || [];
-        
-        if (activePositions.length === 0) {
-          // Try common futures symbols
-          const commonFuturesSymbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT'];
-          const allOrders = [];
-          
-          for (const futuresSymbol of commonFuturesSymbols) {
-            try {
-              const orders = await this.makeFuturesRequest('/fapi/v1/allOrders', { 
-                symbol: futuresSymbol, 
-                limit: Math.min(limit, 20) 
-              });
-              if (orders && orders.length > 0) {
-                // Mark as futures orders
-                const futuresOrders = orders.map(order => ({
-                  ...order,
-                  isFutures: true,
-                  market: 'Futures'
-                }));
-                allOrders.push(...futuresOrders);
-              }
-            } catch (error) {
-              continue;
-            }
-            
-            if (allOrders.length >= limit) break;
-          }
-          
-          return allOrders.slice(0, limit);
+        if (futuresAccount && futuresAccount.positions) {
+          // Get all symbols that have ever had positions (including zero positions)
+          symbolsToTry = futuresAccount.positions
+            .map(pos => pos.symbol)
+            .filter((symbol, index, self) => self.indexOf(symbol) === index) // unique symbols
+            .slice(0, 10); // limit to avoid too many API calls
         }
         
-        // Get orders for active positions
-        const allOrders = [];
-        for (const symbol of activePositions) {
+        // 2. Add comprehensive futures symbols list
+        symbolsToTry = [...new Set([...symbolsToTry, ...POPULAR_FUTURES_SYMBOLS])].slice(0, 25);
+        
+        // 3. Fetch orders for each symbol
+        for (const futuresSymbol of symbolsToTry) {
           try {
             const orders = await this.makeFuturesRequest('/fapi/v1/allOrders', { 
-              symbol, 
-              limit: Math.min(limit, 10) 
+              symbol: futuresSymbol, 
+              limit: Math.min(100, Math.ceil(limit / symbolsToTry.length) + 10)
             });
             if (orders && orders.length > 0) {
+              // Mark as futures orders
               const futuresOrders = orders.map(order => ({
                 ...order,
                 isFutures: true,
@@ -946,13 +927,21 @@ class BinanceAPI {
               allOrders.push(...futuresOrders);
             }
           } catch (error) {
+            console.warn(`Failed to get orders for ${futuresSymbol}:`, error.message);
             continue;
           }
           
+          // Stop if we have enough orders
           if (allOrders.length >= limit) break;
         }
         
-        return allOrders.slice(0, limit);
+        // 4. Sort by time (most recent first) and return limited results
+        const sortedOrders = allOrders
+          .sort((a, b) => (b.time || b.updateTime || 0) - (a.time || a.updateTime || 0))
+          .slice(0, limit);
+          
+        console.log(`Fetched ${sortedOrders.length} futures orders from ${symbolsToTry.length} symbols`);
+        return sortedOrders;
       }
       
       // Get orders for specific symbol
@@ -968,20 +957,20 @@ class BinanceAPI {
     }
   }
 
-  // Get all orders (both spot and futures) - only from the past week
+  // Get all orders (both spot and futures) - comprehensive history
   async getAllOrders(symbol = null, limit = 100) {
     try {
       const allOrders = [];
-      const oneWeekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000); // 7 days ago
+      const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000); // 30 days ago for better coverage
       
-      console.log('Fetching recent orders from the past week only...');
-      console.log('One week ago timestamp:', oneWeekAgo, new Date(oneWeekAgo).toISOString());
+      console.log('Fetching comprehensive order history from the past 30 days...');
+      console.log('30 days ago timestamp:', thirtyDaysAgo, new Date(thirtyDaysAgo).toISOString());
       
       // If symbol is provided, get orders for that specific symbol from both markets
       if (symbol) {
         const [spotOrders, futuresOrders] = await Promise.allSettled([
-          this.getRecentSpotOrders(symbol, limit, oneWeekAgo),
-          this.getRecentFuturesOrders(symbol, limit, oneWeekAgo)
+          this.getRecentSpotOrders(symbol, limit, thirtyDaysAgo),
+          this.getRecentFuturesOrders(symbol, limit, thirtyDaysAgo)
         ]);
         
         if (spotOrders.status === 'fulfilled') {
@@ -997,34 +986,63 @@ class BinanceAPI {
         
         // Filter by time and sort (most recent first)
         const recentOrders = allOrders.filter(order => 
-          (order.time || order.updateTime || 0) >= oneWeekAgo
+          (order.time || order.updateTime || 0) >= thirtyDaysAgo
         );
         recentOrders.sort((a, b) => (b.time || b.updateTime || 0) - (a.time || a.updateTime || 0));
         return recentOrders.slice(0, limit);
       }
       
-      // For getting recent orders across all symbols, use multiple strategies with time filtering
-      console.log('Fetching recent orders from multiple sources...');
+      // For getting comprehensive orders across all symbols, discover symbols from account
+      console.log('Discovering traded symbols from account data...');
       
-      // Strategy 1: Get recent futures orders from active positions and common symbols
+      // Strategy 1: Get symbols from account balances (spots assets you've traded)
+      let discoveredSymbols = [];
       try {
-        const futuresOrders = await this.getRecentFuturesOrders(null, Math.floor(limit * 0.6), oneWeekAgo);
+        const account = await this.makeRequest('/api/v3/account');
+        if (account && account.balances) {
+          // Get all assets that have ever had balance (free + locked > 0 or had historical balance)
+          const assetsWithBalance = account.balances
+            .filter(balance => parseFloat(balance.free) > 0.001 || parseFloat(balance.locked) > 0.001)
+            .map(balance => balance.asset)
+            .filter(asset => asset !== 'USDT' && asset !== 'BUSD' && asset !== 'USDC'); // Exclude stablecoins
+          
+          // Create trading pairs for these assets
+          const tradingPairs = [];
+          for (const asset of assetsWithBalance) {
+            tradingPairs.push(`${asset}USDT`);
+            tradingPairs.push(`${asset}BTC`);
+            tradingPairs.push(`${asset}ETH`);
+          }
+          discoveredSymbols = [...new Set(tradingPairs)]; // Remove duplicates
+          console.log(`Discovered ${discoveredSymbols.length} potential trading pairs from account balances`);
+        }
+      } catch (error) {
+        console.warn('Failed to get account for symbol discovery:', error.message);
+      }
+      
+      // Strategy 2: Add comprehensive list of popular symbols
+      // Combine discovered and popular symbols, prioritizing discovered ones
+      const symbolsToCheck = [...new Set([...discoveredSymbols.slice(0, 20), ...POPULAR_FUTURES_SYMBOLS])].slice(0, 40);
+      console.log(`Checking orders for ${symbolsToCheck.length} symbols`);
+      
+      // Strategy 3: Get recent futures orders from active positions and comprehensive symbols
+      try {
+        const futuresOrders = await this.getRecentFuturesOrders(null, Math.floor(limit * 0.5), thirtyDaysAgo);
         allOrders.push(...futuresOrders);
         console.log(`Got ${futuresOrders.length} recent futures orders`);
       } catch (error) {
         console.warn('Failed to get futures orders:', error.message);
       }
       
-      // Strategy 2: Get recent spot orders from common symbols with time filter
+      // Strategy 4: Get recent spot orders from discovered and popular symbols
       try {
-        const commonSymbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT', 'DOGEUSDT', 'XRPUSDT'];
-        for (const symbol of commonSymbols) {
-          if (allOrders.length >= limit) break;
+        for (const symbol of symbolsToCheck) {
+          if (allOrders.length >= limit * 2) break; // Get extra to allow for filtering
           
           try {
-            const symbolOrders = await this.getRecentSpotOrders(symbol, 20, oneWeekAgo);
+            const symbolOrders = await this.getRecentSpotOrders(symbol, 10, thirtyDaysAgo);
             const recentSpotOrders = symbolOrders
-              .filter(order => (order.time || order.updateTime || 0) >= oneWeekAgo)
+              .filter(order => (order.time || order.updateTime || 0) >= thirtyDaysAgo)
               .map(order => ({
                 ...order,
                 market: 'Spot'
@@ -1036,26 +1054,26 @@ class BinanceAPI {
         }
         console.log(`Total orders after spot symbols: ${allOrders.length}`);
       } catch (error) {
-        console.warn('Failed to get spot orders from common symbols:', error.message);
+        console.warn('Failed to get spot orders from symbols:', error.message);
       }
       
-      // Strategy 3: Get recent trades if we still don't have enough orders
-      if (allOrders.length < 5) {
+      // Strategy 5: Get recent trades to fill any gaps
+      if (allOrders.length < limit / 2) {
         try {
           console.log('Getting recent trades to fill order list...');
-          const trades = await this.getRecentTrades(15);
+          const trades = await this.getRecentTrades(25, thirtyDaysAgo);
           if (trades && trades.length > 0) {
             const tradeOrders = trades
-              .filter(trade => trade.time >= oneWeekAgo)
+              .filter(trade => trade.time >= thirtyDaysAgo)
               .map(trade => ({
                 orderId: trade.orderId,
                 symbol: trade.symbol,
-                side: trade.side,
-                type: trade.type,
-                origQty: trade.origQty,
-                executedQty: trade.executedQty,
+                side: trade.isBuyer ? 'BUY' : 'SELL',
+                type: 'MARKET',
+                origQty: trade.qty,
+                executedQty: trade.qty,
                 price: trade.price,
-                status: trade.status,
+                status: 'FILLED',
                 time: trade.time,
                 market: 'Spot'
               }));
@@ -1064,13 +1082,12 @@ class BinanceAPI {
           }
         } catch (error) {
           console.warn('Failed to get recent trades (non-critical):', error.message);
-          // This is non-critical, continue without trades
         }
       }
       
       // Filter by time, remove duplicates and sort by time (most recent first)
       const recentOrders = allOrders.filter(order => 
-        (order.time || order.updateTime || 0) >= oneWeekAgo
+        (order.time || order.updateTime || 0) >= thirtyDaysAgo
       );
       
       const uniqueOrders = recentOrders.filter((order, index, self) => 
@@ -1083,7 +1100,7 @@ class BinanceAPI {
       
       uniqueOrders.sort((a, b) => (b.time || b.updateTime || 0) - (a.time || a.updateTime || 0));
       
-      console.log(`Returning ${uniqueOrders.length} unique recent orders from the past week`);
+      console.log(`Returning ${uniqueOrders.length} unique orders from comprehensive search`);
       return uniqueOrders.slice(0, limit);
       
     } catch (error) {
@@ -1123,11 +1140,10 @@ class BinanceAPI {
         
         if (activePositions.length === 0) {
           // Try common futures symbols
-          const commonFuturesSymbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT'];
           const allOrders = [];
-          
-          for (const futuresSymbol of commonFuturesSymbols) {
-            try {
+
+          for (const futuresSymbol of POPULAR_FUTURES_SYMBOLS) {
+          try {
               const params = { symbol: futuresSymbol, limit: Math.min(limit, 20) };
               if (startTime) params.startTime = startTime;
               
@@ -1201,14 +1217,13 @@ class BinanceAPI {
   // Get recent trades for a symbol with time filtering
   async getRecentTrades(limit = 10, startTime = null) {
     try {
-      const commonSymbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT'];
       const allTrades = [];
-      
-      for (const symbol of commonSymbols) {
+
+      for (const symbol of POPULAR_FUTURES_SYMBOLS) {
         try {
           const params = { 
             symbol, 
-            limit: Math.floor(limit / commonSymbols.length) + 5 // Get a few extra
+            limit: Math.floor(limit / Math.min(POPULAR_FUTURES_SYMBOLS.length, 10)) + 3 // Distribute across fewer symbols
           };
           
           // Add startTime if provided
@@ -1226,6 +1241,9 @@ class BinanceAPI {
         } catch (error) {
           continue;
         }
+        
+        // Stop early if we have enough trades
+        if (allTrades.length >= limit * 2) break;
       }
       
       const sortedTrades = allTrades.sort((a, b) => b.time - a.time);
@@ -1301,10 +1319,9 @@ class BinanceAPI {
 
   // Helper method to get orders for common trading pairs
   async getOrdersForCommonSymbols(limit = 100) {
-    const commonSymbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT'];
     const allOrders = [];
-    
-    for (const symbol of commonSymbols) {
+
+    for (const symbol of POPULAR_FUTURES_SYMBOLS) {
       try {
         const orders = await this.makeRequest('/api/v3/allOrders', { 
           symbol, 
@@ -1329,10 +1346,9 @@ class BinanceAPI {
   async getRecentTrades(limit = 50) {
     try {
       // Try to get account trades for common symbols
-      const commonSymbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT'];
       const allTrades = [];
-      
-      for (const symbol of commonSymbols) {
+
+      for (const symbol of POPULAR_FUTURES_SYMBOLS) {
         try {
           const trades = await this.makeRequest('/api/v3/myTrades', { 
             symbol, 
@@ -1460,6 +1476,196 @@ class BinanceAPI {
   // Get trading fees
   async getTradeFee() {
     return await this.makeRequest('/sapi/v1/asset/tradeFee');
+  }
+
+  // Get futures position history (current positions)
+  async getFuturesPositions() {
+    try {
+      // Get position risk data (comprehensive position info) - this gives us ROE
+      const positionRisk = await this.makeFuturesRequest('/fapi/v2/positionRisk');
+      
+      // Get account info for unrealized PnL data - this gives us ROI
+      const accountInfo = await this.makeFuturesRequest('/fapi/v2/account');
+      
+      // Filter only positions with non-zero amounts
+      const activePositions = positionRisk.filter(position => parseFloat(position.positionAmt) !== 0);
+      
+      // Enhance position data with account info for accurate values from Binance
+      const enhancedPositions = activePositions.map(position => {
+        // Find matching position in account info for unrealized PnL and ROI
+        const accountPosition = accountInfo?.positions?.find(p => p.symbol === position.symbol);
+        
+        const positionAmt = parseFloat(position.positionAmt);
+        const entryPrice = parseFloat(position.entryPrice);
+        const markPrice = parseFloat(position.markPrice);
+        
+        // Use Binance's direct values - DO NOT calculate manually
+        const unrealizedPnl = parseFloat(accountPosition?.unrealizedProfit || position.unRealizedProfit || 0);
+        
+        // ROE (Return on Equity) - Calculate from price difference percentage
+        let roe = parseFloat(position.percentage || 0);
+        
+        // If ROE is not available from Binance, calculate it manually
+        if (roe === 0 && entryPrice > 0 && markPrice > 0) {
+          roe = ((markPrice - entryPrice) / entryPrice) * 100;
+          // For short positions, flip the sign
+          if (positionAmt < 0) roe = -roe;
+        }
+        
+        // ROI (Return on Investment) - Calculate based on unrealized PnL and initial margin
+        let roi = 0;
+        if (accountPosition && accountPosition.initialMargin) {
+          const initialMargin = parseFloat(accountPosition.initialMargin);
+          if (initialMargin > 0) {
+            roi = (unrealizedPnl / initialMargin) * 100;
+          }
+        } else if (unrealizedPnl !== 0 && entryPrice > 0) {
+          // Fallback ROI calculation using notional value
+          const notionalValue = Math.abs(positionAmt) * entryPrice;
+          const leverage = parseFloat(position.leverage || 1);
+          const margin = notionalValue / leverage;
+          if (margin > 0) {
+            roi = (unrealizedPnl / margin) * 100;
+          }
+        }
+        
+        console.log(`Position ${position.symbol}:`, {
+          roe: roe,
+          roi: roi,
+          unrealizedPnl: unrealizedPnl,
+          initialMargin: accountPosition?.initialMargin,
+          percentage: position.percentage,
+          entryPrice: entryPrice,
+          markPrice: markPrice,
+          positionAmt: positionAmt
+        });
+        
+        return {
+          ...position,
+          // Binance's direct values
+          unrealizedProfit: unrealizedPnl.toString(),
+          unRealizedProfit: unrealizedPnl.toString(),
+          roe: roe.toString(), // Return on Equity 
+          roi: roi.toString(), // Return on Investment calculated from margin
+          percentage: roe.toString(), // Keep original field for compatibility
+          // Ensure all required fields are present
+          leverage: position.leverage || '1',
+          marginType: position.marginType || 'cross',
+          // Add account position data for reference
+          initialMargin: accountPosition?.initialMargin || '0',
+          maintMargin: accountPosition?.maintMargin || '0'
+        };
+      });
+      
+      console.log('Enhanced positions with ROE/ROI from Binance:', enhancedPositions);
+      return enhancedPositions;
+    } catch (error) {
+      console.warn('Failed to get futures positions:', error.message);
+      return [];
+    }
+  }
+
+  // Get futures trade history
+  async getFuturesTradeHistory(symbol = null, limit = 100, startTime = null) {
+    try {
+      const params = { limit };
+      if (symbol) params.symbol = symbol;
+      if (startTime) params.startTime = startTime;
+      
+      const response = await this.makeFuturesRequest('/fapi/v1/userTrades', params);
+      return response.map(trade => ({
+        ...trade,
+        isFutures: true,
+        market: 'Futures'
+      }));
+    } catch (error) {
+      console.warn('Failed to get futures trade history:', error.message);
+      return [];
+    }
+  }
+
+  // Get futures transaction history (includes deposits, withdrawals, etc.)
+  async getFuturesTransactionHistory(incomeType = null, limit = 100, startTime = null) {
+    try {
+      const params = { limit };
+      if (incomeType) params.incomeType = incomeType;
+      if (startTime) params.startTime = startTime;
+      
+      const response = await this.makeFuturesRequest('/fapi/v1/income', params);
+      return response.map(transaction => ({
+        ...transaction,
+        isFutures: true,
+        market: 'Futures'
+      }));
+    } catch (error) {
+      console.warn('Failed to get futures transaction history:', error.message);
+      return [];
+    }
+  }
+
+  // Get funding fee history
+  async getFundingFeeHistory(symbol = null, limit = 100, startTime = null) {
+    try {
+      const params = { limit };
+      if (symbol) params.symbol = symbol;
+      if (startTime) params.startTime = startTime;
+      
+      const response = await this.makeFuturesRequest('/fapi/v1/income', { 
+        ...params, 
+        incomeType: 'FUNDING_FEE' 
+      });
+      return response.map(fee => ({
+        ...fee,
+        isFutures: true,
+        market: 'Futures'
+      }));
+    } catch (error) {
+      console.warn('Failed to get funding fee history:', error.message);
+      return [];
+    }
+  }
+
+  // Get comprehensive futures data for Orders Management section
+  async getFuturesOrdersData() {
+    try {
+      const [
+        openOrders,
+        orderHistory,
+        positions,
+        tradeHistory,
+        transactionHistory,
+        fundingFees
+      ] = await Promise.allSettled([
+        this.getFuturesOpenOrders(),
+        this.getFuturesOrders(null, 500),
+        this.getFuturesPositions(),
+        this.getFuturesTradeHistory(null, 50),
+        this.getFuturesTransactionHistory(null, 50),
+        this.getFundingFeeHistory(null, 50)
+      ]);
+
+      return {
+        openOrders: openOrders.status === 'fulfilled' ? openOrders.value : [],
+        orderHistory: orderHistory.status === 'fulfilled' ? orderHistory.value : [],
+        positions: positions.status === 'fulfilled' ? positions.value : [],
+        tradeHistory: tradeHistory.status === 'fulfilled' ? tradeHistory.value : [],
+        transactionHistory: transactionHistory.status === 'fulfilled' ? transactionHistory.value : [],
+        fundingFees: fundingFees.status === 'fulfilled' ? fundingFees.value : [],
+        success: true
+      };
+    } catch (error) {
+      console.error('Failed to get futures orders data:', error);
+      return {
+        openOrders: [],
+        orderHistory: [],
+        positions: [],
+        tradeHistory: [],
+        transactionHistory: [],
+        fundingFees: [],
+        success: false,
+        error: error.message
+      };
+    }
   }
 }
 

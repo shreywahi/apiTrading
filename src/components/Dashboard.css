@@ -1872,3 +1872,216 @@
 .dashboard.dark-mode .summary-panel {
   background: transparent !important;
 }
+
+/* Futures Trading Sections */
+.futures-tabs {
+  margin-top: 1rem;
+}
+
+.futures-tab-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 1rem;
+}
+
+.futures-tab-btn {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  color: #64748b;
+  min-width: fit-content;
+}
+
+.futures-tab-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e0;
+  transform: translateY(-1px);
+}
+
+.futures-tab-btn.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: #667eea;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.futures-tab-content {
+  margin-top: 1rem;
+}
+
+.futures-table-container {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.futures-table-container h3 {
+  margin: 0 0 0.5rem 0;
+  color: #2d3748;
+  font-weight: 600;
+}
+
+.futures-description {
+  margin: 0 0 1.5rem 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.futures-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.futures-table th {
+  background: #f8fafc;
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 2px solid #e2e8f0;
+  font-weight: 600;
+  color: #4a5568;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.futures-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.futures-table th.sortable:hover {
+  background: #e2e8f0;
+}
+
+.futures-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #2d3748;
+}
+
+.futures-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.futures-table tbody tr:hover td {
+  background: transparent;
+}
+
+.futures-table .symbol {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.futures-table .side-buy,
+.futures-table .side-long {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.futures-table .side-sell,
+.futures-table .side-short {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.futures-table .profit {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.futures-table .loss {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+/* Dark mode for futures sections */
+.dashboard.dark-mode .futures-tab-btn {
+  background: rgba(30, 30, 46, 0.8);
+  border-color: rgba(102, 126, 234, 0.3);
+  color: #e2e8f0;
+}
+
+.dashboard.dark-mode .futures-tab-btn:hover {
+  background: rgba(45, 27, 105, 0.6);
+  border-color: rgba(102, 126, 234, 0.5);
+}
+
+.dashboard.dark-mode .futures-tab-btn.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: #667eea;
+}
+
+.dashboard.dark-mode .futures-table-container {
+  background: rgba(30, 30, 46, 0.8);
+  border: 1px solid rgba(102, 126, 234, 0.2);
+}
+
+.dashboard.dark-mode .futures-table-container h3 {
+  color: #e2e8f0;
+}
+
+.dashboard.dark-mode .futures-description {
+  color: #cbd5e0;
+}
+
+.dashboard.dark-mode .futures-table th {
+  background: rgba(45, 27, 105, 0.6);
+  color: #e2e8f0;
+  border-bottom-color: rgba(102, 126, 234, 0.3);
+}
+
+.dashboard.dark-mode .futures-table th.sortable:hover {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+.dashboard.dark-mode .futures-table td {
+  color: #e2e8f0;
+  border-bottom-color: rgba(102, 126, 234, 0.1);
+}
+
+.dashboard.dark-mode .futures-table tbody tr:hover {
+  background: rgba(45, 27, 105, 0.3);
+}
+
+.dashboard.dark-mode .futures-table .symbol {
+  color: #e2e8f0;
+}
+
+.dashboard.dark-mode .futures-tab-buttons {
+  border-bottom-color: rgba(102, 126, 234, 0.3);
+}
+
+/* Responsive design for futures tabs */
+@media (max-width: 768px) {
+  .futures-tab-buttons {
+    flex-direction: column;
+  }
+  
+  .futures-tab-btn {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  
+  .futures-table {
+    font-size: 0.8rem;
+  }
+  
+  .futures-table th,
+  .futures-table td {
+    padding: 0.5rem;
+  }
+}
