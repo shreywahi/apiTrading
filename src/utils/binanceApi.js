@@ -196,13 +196,11 @@ class BinanceAPI {
     for (const baseUrl of endpointsToTry) {
       try {
         const url = `${baseUrl}${endpoint}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-        console.log('Trying public API request to:', url);
         
         const response = await axios.get(url, { 
           timeout: 15000 
         });
         
-        console.log('✅ Public API success with:', baseUrl);
         return response.data;
       } catch (error) {
         console.warn(`❌ Public API failed with ${baseUrl}:`, error.message);
@@ -237,10 +235,6 @@ class BinanceAPI {
       throw new Error('API key and secret appear to be invalid (too short)');
     }
 
-    console.log(`Making request to ${endpoint} with params:`, params);
-    console.log('API Key available:', !!this.apiKey);
-    console.log('API Secret available:', !!this.apiSecret);
-
     // Sync server time if we haven't done it yet
     if (this.timeOffset === undefined) {
       await this.syncServerTime();
@@ -272,18 +266,14 @@ class BinanceAPI {
     for (const baseUrl of endpointsToTry) {
       try {
         const url = `${baseUrl}${endpoint}?${queryParams.toString()}`;
-        console.log('Trying API request to:', url);
         
         const response = await axios.get(url, { 
           headers: this.getHeaders(),
           timeout: 15000 
         });
         
-        console.log('Response status:', response.status);
-        
         // If successful, cache this endpoint
         this.workingEndpoint = baseUrl;
-        console.log('✅ Success with:', baseUrl);
         return response.data;
       } catch (error) {
         console.warn(`❌ Failed with ${baseUrl}:`, error.message);

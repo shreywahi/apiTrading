@@ -1,5 +1,7 @@
 export const calculatePnL = (accountData) => {
-  if (!accountData) return { totalValue: 0, totalPnL: 0, spotValue: 0, futuresValue: 0, pnlPercentage: 0 };
+  if (!accountData) {
+    return { totalValue: 0, totalPnL: 0, spotValue: 0, futuresValue: 0, pnlPercentage: 0 };
+  }
 
   const spotValue = accountData.spotWalletValue || 0;
 

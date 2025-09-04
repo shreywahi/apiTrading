@@ -1,18 +1,23 @@
 import { useState, useEffect } from 'react';
 
-export const useAutoRefresh = (fetchData, shouldStart = true) => {
-  const [autoRefreshTimer, setAutoRefreshTimer] = useState(15);
-  const [autoRefreshActive, setAutoRefreshActive] = useState(true);
+export const useAutoRefresh = (fetchData, shouldStart = true, fastRefresh = null) => {
+  const [autoRefreshTimer, setAutoRefreshTimer] = useState(5);
+  const [autoRefreshActive, setAutoRefreshActive] = useState(false);
 
   const handleManualRefresh = () => {
-    setAutoRefreshTimer(15);
-    fetchData(true);
+    setAutoRefreshTimer(5);
+    // Use fast refresh if available for manual refreshes, otherwise full refresh
+    if (fastRefresh && typeof fastRefresh === 'function') {
+      fastRefresh();
+    } else {
+      fetchData(true);
+    }
   };
 
   const toggleAutoRefresh = () => {
     setAutoRefreshActive(!autoRefreshActive);
     if (!autoRefreshActive) {
-      setAutoRefreshTimer(15);
+      setAutoRefreshTimer(5);
     }
   };
 
@@ -23,8 +28,13 @@ export const useAutoRefresh = (fetchData, shouldStart = true) => {
     const interval = setInterval(() => {
       setAutoRefreshTimer(prev => {
         if (prev <= 1) {
-          fetchData(true);
-          return 15;
+          // Use fast refresh for auto-refresh if available
+          if (fastRefresh && typeof fastRefresh === 'function') {
+            fastRefresh();
+          } else {
+            fetchData(true);
+          }
+          return 5;
         }
         return prev - 1;
       });
@@ -36,7 +46,7 @@ export const useAutoRefresh = (fetchData, shouldStart = true) => {
   // Reset timer when shouldStart becomes true (when data loading completes)
   useEffect(() => {
     if (shouldStart && autoRefreshActive) {
-      setAutoRefreshTimer(15);
+      setAutoRefreshTimer(5);
     }
   }, [shouldStart, autoRefreshActive]);
 

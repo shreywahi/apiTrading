@@ -7,15 +7,18 @@ import PnLSection from './pnl/PnLSection';
 import OrdersSection from './orders/OrdersSection';
 import LoadingSpinner from './common/LoadingSpinner';
 import ErrorDisplay from './common/ErrorDisplay';
+import PerformanceIndicator from './common/PerformanceIndicator';
 
 // Hooks
 import { useDashboardData } from '../hooks/useDashboardData';
+import { useOptimizedDashboardData } from '../hooks/useOptimizedDashboardData';
 import { useSorting } from '../hooks/useSorting';
 import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import { useCurrency } from '../hooks/useCurrency';
 
 // Utils
 import { calculatePnL, formatDate } from '../utils/dashboardUtils';
+import { extendBinanceApiWithOptimizations } from '../utils/binanceOptimizer';
 
 import './DashboardLayout.css';
 import './CosmicBackground.css';
@@ -27,7 +30,19 @@ const Dashboard = ({ binanceApi, onLogout }) => {
   const [activeWalletTab, setActiveWalletTab] = useState('spot');
   const [activeFuturesTab, setActiveFuturesTab] = useState('open-orders');
   const [darkMode, setDarkMode] = useState(true);
+  const [useOptimizedFetch, setUseOptimizedFetch] = useState(true);
 
+  // Performance optimization - extend API with optimizations on first load
+  useEffect(() => {
+    if (binanceApi && !binanceApi.isOptimized) {
+      extendBinanceApiWithOptimizations(binanceApi);
+      binanceApi.isOptimized = true;
+    }
+  }, [binanceApi]);
+
+  // Choose data fetching strategy based on optimization setting
+  const dataHook = useOptimizedFetch ? useOptimizedDashboardData : useDashboardData;
+  
   // Custom hooks
   const {
     accountData,
@@ -42,8 +57,9 @@ const Dashboard = ({ binanceApi, onLogout }) => {
     loading,
     error,
     refreshing,
-    fetchData
-  } = useDashboardData(binanceApi);
+    fetchData,
+    fastRefresh
+  } = dataHook(binanceApi);
 
   const { sortConfig, handleSort, sortData, SortIndicator } = useSorting();
   
@@ -53,7 +69,7 @@ const Dashboard = ({ binanceApi, onLogout }) => {
     handleManualRefresh,
     toggleAutoRefresh,
     setAutoRefreshActive
-  } = useAutoRefresh(fetchData, !loading); // Only start timer when not loading
+  } = useAutoRefresh(fetchData, !loading, fastRefresh); // Pass fastRefresh function
 
   const {
     displayCurrency,
@@ -68,15 +84,11 @@ const Dashboard = ({ binanceApi, onLogout }) => {
     fetchExchangeRates();
   }, []);
 
-  // Pause auto-refresh when user is actively refreshing
+  // Only pause auto-refresh during initial loading, not during refreshes
   useEffect(() => {
-    if (refreshing) {
-      setAutoRefreshActive(false);
-    } else if (!loading) {
-      // Only reactivate auto-refresh if data is loaded
-      setTimeout(() => setAutoRefreshActive(true), 1000);
-    }
-  }, [refreshing, loading, setAutoRefreshActive]);
+    // Don't interfere with auto-refresh during normal refresh operations
+    // Auto-refresh should only start paused on initial load
+  }, []);
 
   const toggleSection = (sectionName) => {
     setExpandedSection(sectionName);
@@ -174,6 +186,13 @@ const Dashboard = ({ binanceApi, onLogout }) => {
           />
         )}
       </div>
+      
+      {/* Performance monitoring indicator */}
+      <PerformanceIndicator 
+        loading={loading}
+        refreshing={refreshing}
+        accountData={accountData}
+      />
     </div>
   );
 };
