@@ -1,0 +1,1466 @@
+import axios from 'axios';
+import CryptoJS from 'crypto-js';
+
+// Multiple API endpoints for fallback
+const API_ENDPOINTS = {
+  LOCAL_PROXY: '/api/binance',
+  FUTURES_PROXY: '/fapi/binance',
+  TESTNET_PROXY: '/api/testnet',
+  DIRECT: 'https://api.binance.com',
+  FUTURES_DIRECT: 'https://fapi.binance.com',
+  TESTNET_DIRECT: 'https://testnet.binance.vision'
+};
+
+// CORS proxies as fallback options
+const CORS_PROXIES = [
+  'https://api.allorigins.win/raw?url=',
+  'https://corsproxy.io/?',
+  'https://cors-anywhere.herokuapp.com/'
+];
+
+class BinanceAPI {
+  constructor(apiKey, apiSecret, useTestnet = false, useMockData = false) {
+    this.apiKey = apiKey;
+    this.apiSecret = apiSecret;
+    this.useTestnet = useTestnet;
+    this.useMockData = useMockData;
+    this.workingEndpoint = null; // Cache the working endpoint
+    this.timeOffset = 0; // Server time offset
+  }
+
+  // Sync server time to avoid timestamp issues
+  async syncServerTime() {
+    try {
+      const serverTimeEndpoint = this.useTestnet ? 
+        `${API_ENDPOINTS.TESTNET_DIRECT}/api/v3/time` : 
+        `${API_ENDPOINTS.DIRECT}/api/v3/time`;
+      
+      const response = await axios.get(serverTimeEndpoint, { timeout: 5000 });
+      const serverTime = response.data.serverTime;
+      const localTime = Date.now();
+      this.timeOffset = serverTime - localTime;
+      console.log('Server time synced. Offset:', this.timeOffset);
+    } catch (error) {
+      console.warn('Failed to sync server time, using local time:', error.message);
+      this.timeOffset = 0;
+    }
+  }
+
+  // Get synchronized timestamp
+  getTimestamp() {
+    return Date.now() + this.timeOffset;
+  }
+
+  // Generate mock data for demo purposes
+  getMockAccountData() {
+    return {
+      accountType: "SPOT",
+      balances: [
+        { asset: "USDT", free: "1250.50", locked: "0.00" },
+        { asset: "BTC", free: "0.05123456", locked: "0.00" },
+        { asset: "ETH", free: "2.75891234", locked: "0.50000000" },
+        { asset: "BNB", free: "15.25", locked: "10.00" },
+        { asset: "ADA", free: "500.00", locked: "0.00" },
+        { asset: "DOT", free: "0.00", locked: "100.00" },
+        { asset: "SOL", free: "8.50", locked: "20.00" },
+        { asset: "MATIC", free: "150.75", locked: "0.00" }
+      ],
+      canTrade: true,
+      canWithdraw: true,
+      canDeposit: true,
+      updateTime: Date.now()
+    };
+  }
+
+  getMockOrders() {
+    const now = Date.now();
+    return [
+      {
+        orderId: 123456789,
+        symbol: "BTCUSDT",
+        status: "FILLED",
+        side: "BUY",
+        type: "LIMIT",
+        origQty: "0.001",
+        executedQty: "0.001",
+        price: "45000.00",
+        time: now - 86400000, // 1 day ago
+      },
+      {
+        orderId: 123456790,
+        symbol: "ETHUSDT",
+        status: "FILLED",
+        side: "SELL",
+        type: "MARKET",
+        origQty: "0.5",
+        executedQty: "0.5",
+        price: "0.00000000",
+        time: now - 3600000, // 1 hour ago
+      },
+      {
+        orderId: 123456791,
+        symbol: "ADAUSDT",
+        status: "PARTIALLY_FILLED",
+        side: "BUY",
+        type: "LIMIT",
+        origQty: "1000",
+        executedQty: "500",
+        price: "0.45",
+        time: now - 1800000, // 30 minutes ago
+      },
+      {
+        orderId: 123456793,
+        symbol: "BNBUSDT",
+        status: "FILLED",
+        side: "BUY",
+        type: "LIMIT",
+        origQty: "5",
+        executedQty: "5",
+        price: "320.50",
+        time: now - 7200000, // 2 hours ago
+      },
+      {
+        orderId: 123456794,
+        symbol: "DOTUSDT",
+        status: "CANCELED",
+        side: "SELL",
+        type: "LIMIT",
+        origQty: "100",
+        executedQty: "0",
+        price: "6.75",
+        time: now - 10800000, // 3 hours ago
+      }
+    ];
+  }
+
+  getMockOpenOrders() {
+    return [
+      {
+        orderId: 123456792,
+        symbol: "BNBUSDT",
+        status: "NEW",
+        side: "BUY",
+        type: "LIMIT",
+        origQty: "10",
+        executedQty: "0",
+        price: "300.00",
+        time: Date.now() - 600000, // 10 minutes ago
+      },
+      {
+        orderId: 123456795,
+        symbol: "SOLUSDT",
+        status: "NEW",
+        side: "SELL",
+        type: "LIMIT",
+        origQty: "20",
+        executedQty: "0",
+        price: "25.75",
+        time: Date.now() - 1200000, // 20 minutes ago
+      }
+    ];
+  }
+
+  // Generate signature for authenticated requests
+  generateSignature(queryString) {
+    return CryptoJS.HmacSHA256(queryString, this.apiSecret).toString();
+  }
+
+  // Create authenticated request headers
+  getHeaders() {
+    return {
+      'X-MBX-APIKEY': this.apiKey,
+      'Content-Type': 'application/json',
+    };
+  }
+
+  // Helper method for public endpoints (no authentication needed)
+  async makePublicRequest(endpoint, params = {}) {
+    // Public endpoints don't need authentication
+    const queryParams = new URLSearchParams(params);
+    
+    // Try different endpoints in order of preference
+    const endpointsToTry = this.useTestnet ? 
+      [API_ENDPOINTS.TESTNET_PROXY, API_ENDPOINTS.TESTNET_DIRECT] :
+      [API_ENDPOINTS.LOCAL_PROXY, API_ENDPOINTS.DIRECT];
+
+    let lastError = null;
+
+    // Try each endpoint
+    for (const baseUrl of endpointsToTry) {
+      try {
+        const url = `${baseUrl}${endpoint}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+        console.log('Trying public API request to:', url);
+        
+        const response = await axios.get(url, { 
+          timeout: 15000 
+        });
+        
+        console.log('✅ Public API success with:', baseUrl);
+        return response.data;
+      } catch (error) {
+        console.warn(`❌ Public API failed with ${baseUrl}:`, error.message);
+        lastError = error;
+        continue;
+      }
+    }
+
+    // If all methods failed, throw the last error
+    throw new Error(`Public API Error: ${lastError.message}`);
+  }
+
+  // Helper method to try multiple endpoints until one works
+  async makeRequest(endpoint, params = {}) {
+    // Return mock data if in demo mode
+    if (this.useMockData) {
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
+      
+      if (endpoint === '/api/v3/account') return this.getMockAccountData();
+      if (endpoint === '/api/v3/allOrders') return this.getMockOrders();
+      if (endpoint === '/api/v3/openOrders') return this.getMockOpenOrders();
+      
+      return {};
+    }
+
+    // Validate API credentials
+    if (!this.apiKey || !this.apiSecret) {
+      throw new Error('API key and secret are required');
+    }
+
+    if (this.apiKey.length < 20 || this.apiSecret.length < 20) {
+      throw new Error('API key and secret appear to be invalid (too short)');
+    }
+
+    console.log(`Making request to ${endpoint} with params:`, params);
+    console.log('API Key available:', !!this.apiKey);
+    console.log('API Secret available:', !!this.apiSecret);
+
+    // Sync server time if we haven't done it yet
+    if (this.timeOffset === undefined) {
+      await this.syncServerTime();
+    }
+
+    const timestamp = this.getTimestamp();
+    const queryParams = new URLSearchParams({
+      ...params,
+      timestamp: timestamp
+    });
+
+    const signature = this.generateSignature(queryParams.toString());
+    queryParams.append('signature', signature);
+
+    // Try different endpoints in order of preference
+    const endpointsToTry = this.useTestnet ? 
+      [API_ENDPOINTS.TESTNET_PROXY, API_ENDPOINTS.TESTNET_DIRECT] :
+      [API_ENDPOINTS.LOCAL_PROXY];
+
+    // If we have a working endpoint from previous calls, try it first
+    if (this.workingEndpoint && !endpointsToTry.includes(this.workingEndpoint)) {
+      endpointsToTry.unshift(this.workingEndpoint);
+    }
+
+    let lastError = null;
+    let localProxyFailed = false;
+
+    // Try each endpoint
+    for (const baseUrl of endpointsToTry) {
+      try {
+        const url = `${baseUrl}${endpoint}?${queryParams.toString()}`;
+        console.log('Trying API request to:', url);
+        
+        const response = await axios.get(url, { 
+          headers: this.getHeaders(),
+          timeout: 15000 
+        });
+        
+        console.log('Response status:', response.status);
+        
+        // If successful, cache this endpoint
+        this.workingEndpoint = baseUrl;
+        console.log('✅ Success with:', baseUrl);
+        return response.data;
+      } catch (error) {
+        console.warn(`❌ Failed with ${baseUrl}:`, error.message);
+        
+        // Mark if local proxy failed
+        if (baseUrl === API_ENDPOINTS.LOCAL_PROXY) {
+          localProxyFailed = true;
+        }
+        
+        // Log more details for 400 errors
+        if (error.response?.status === 400) {
+          console.error('400 Error Details:', {
+            status: error.response.status,
+            data: error.response.data,
+            headers: error.response.headers,
+            timestamp: timestamp,
+            queryString: queryParams.toString()
+          });
+        }
+        
+        lastError = error;
+        continue;
+      }
+    }
+
+    // Only try CORS proxies if local proxy failed and we're not on testnet
+    if (localProxyFailed && !this.useTestnet) {
+      console.log('Local proxy failed, trying CORS proxies as fallback...');
+      
+      for (const proxyUrl of CORS_PROXIES) {
+        try {
+          const directUrl = API_ENDPOINTS.DIRECT;
+          const fullUrl = `${proxyUrl}${directUrl}${endpoint}?${queryParams.toString()}`;
+          console.log('Trying CORS proxy:', fullUrl);
+          
+          const response = await axios.get(fullUrl, { 
+            headers: {
+              ...this.getHeaders(),
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            timeout: 15000 
+          });
+          
+          this.workingEndpoint = proxyUrl + directUrl;
+          return response.data;
+        } catch (error) {
+          console.warn(`CORS proxy ${proxyUrl} failed:`, error.message);
+          lastError = error;
+          continue;
+        }
+      }
+    }
+
+    // If all methods failed, throw the last error
+    this.handleApiError(lastError);
+  }
+
+  // Helper method for futures API requests
+  async makeFuturesRequest(endpoint, params = {}) {
+    // Return mock data if in demo mode
+    if (this.useMockData) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return [];
+    }
+
+    // Validate API credentials
+    if (!this.apiKey || !this.apiSecret) {
+      throw new Error('API key and secret are required for futures');
+    }
+
+    // Sync server time if we haven't done it yet
+    if (this.timeOffset === undefined) {
+      await this.syncServerTime();
+    }
+
+    const timestamp = this.getTimestamp();
+    const queryParams = new URLSearchParams({
+      ...params,
+      timestamp: timestamp
+    });
+
+    const signature = this.generateSignature(queryParams.toString());
+    queryParams.append('signature', signature);
+
+    // Try futures endpoints
+    const endpointsToTry = [API_ENDPOINTS.FUTURES_PROXY, API_ENDPOINTS.FUTURES_DIRECT];
+    let lastError = null;
+
+    for (const baseUrl of endpointsToTry) {
+      try {
+        const url = `${baseUrl}${endpoint}?${queryParams.toString()}`;
+        console.log('Trying futures API request to:', url);
+        
+        const response = await axios.get(url, { 
+          headers: this.getHeaders(),
+          timeout: 15000 
+        });
+        
+        console.log('✅ Futures success with:', baseUrl);
+        return response.data;
+      } catch (error) {
+        console.warn(`❌ Futures failed with ${baseUrl}:`, error.message);
+        lastError = error;
+        continue;
+      }
+    }
+
+    throw this.handleApiError(lastError);
+  }
+
+  handleApiError(error) {
+    if (error.response?.data?.msg) {
+      throw new Error(error.response.data.msg);
+    } else if (error.response?.status === 400) {
+      throw new Error('Invalid API request. Please check your API credentials and permissions.');
+    } else if (error.response?.status === 403) {
+      throw new Error('Access forbidden. Please check your API key permissions.');
+    } else if (error.response?.status === 401) {
+      throw new Error('Unauthorized. Please check your API credentials.');
+    } else if (error.code === 'ECONNABORTED') {
+      throw new Error('Request timeout - please check your internet connection');
+    } else if (error.message.includes('Network Error')) {
+      throw new Error('CORS_ERROR');
+    }
+    throw new Error(`API Error: ${error.message}`);
+  }
+
+  // Get comprehensive account information (spot + futures) using Binance's direct values
+  async getEnhancedAccountInfo() {
+    try {
+      console.log('Getting enhanced account info with direct Binance values...');
+      console.log('API Key (first 10 chars):', this.apiKey?.substring(0, 10));
+      console.log('API Secret length:', this.apiSecret?.length);
+      
+      const [spotAccount, futuresAccount, walletStatus] = await Promise.allSettled([
+        this.makeRequest('/api/v3/account'),
+        this.getFuturesAccountInfo(),
+        this.getAccountSnapshot() // Get direct portfolio values from Binance
+      ]);
+      
+      const result = {
+        spot: spotAccount.status === 'fulfilled' ? spotAccount.value : null,
+        futures: futuresAccount.status === 'fulfilled' ? futuresAccount.value : null,
+        walletSnapshot: walletStatus.status === 'fulfilled' ? walletStatus.value : null
+      };
+      
+      console.log('Enhanced account info results:', {
+        spotSuccess: spotAccount.status === 'fulfilled',
+        futuresSuccess: futuresAccount.status === 'fulfilled',
+        walletSnapshotSuccess: walletStatus.status === 'fulfilled',
+        spotBalances: result.spot?.balances?.length || 0,
+        spotAccountData: result.spot,
+        futuresAccountData: result.futures,
+        walletSnapshotData: result.walletSnapshot
+      });
+      
+      // Log any errors from failed requests
+      if (spotAccount.status === 'rejected') {
+        console.error('Spot account request failed:', spotAccount.reason);
+      }
+      if (futuresAccount.status === 'rejected') {
+        console.error('Futures account request failed:', futuresAccount.reason);
+      }
+      if (walletStatus.status === 'rejected') {
+        console.error('Wallet status request failed:', walletStatus.reason);
+      }
+      
+      // Get current prices for USD value calculations (use 24hr ticker for all symbols at once)
+      console.log('Fetching all ticker prices for USD calculations...');
+      
+      let allPrices = [];
+      try {
+        // Use symbol price ticker endpoint for more accurate real-time prices
+        const allTickers = await this.makePublicRequest('/api/v3/ticker/price');
+        if (allTickers && Array.isArray(allTickers)) {
+          allPrices = allTickers.filter(ticker => ticker.symbol.endsWith('USDT') || ticker.symbol.endsWith('BUSD'));
+          console.log(`Fetched ${allPrices.length} price tickers (USDT/BUSD pairs)`);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch all price tickers, trying 24hr ticker:', error.message);
+        
+        // Fallback to 24hr ticker
+        try {
+          const allTickers = await this.makePublicRequest('/api/v3/ticker/24hr');
+          if (allTickers && Array.isArray(allTickers)) {
+            allPrices = allTickers.filter(ticker => ticker.symbol.endsWith('USDT') || ticker.symbol.endsWith('BUSD'));
+            console.log(`Fetched ${allPrices.length} 24hr tickers (USDT/BUSD pairs)`);
+          }
+        } catch (fallbackError) {
+          console.warn('24hr ticker also failed, using minimal price set:', fallbackError.message);
+          allPrices = [];
+        }
+      }
+      
+      const priceMap = {};
+      const currentPrices = [];
+      
+      allPrices.forEach(ticker => {
+        const symbol = ticker.symbol;
+        if (symbol.endsWith('USDT')) {
+          const asset = symbol.replace('USDT', '');
+          const price = parseFloat(ticker.lastPrice || ticker.price);
+          if (price > 0) {
+            priceMap[asset] = price;
+            currentPrices.push({
+              symbol: symbol,
+              price: price.toString()
+            });
+          }
+        }
+      });
+      
+      console.log('Successfully fetched prices for', Object.keys(priceMap).length, 'assets');
+      if (priceMap['XRP']) {
+        console.log('XRP price available:', priceMap['XRP']);
+      }
+      if (priceMap['BTC']) {
+        console.log('BTC price available:', priceMap['BTC']);
+      }
+      
+      // Add current prices to account data for individual asset USD display
+      result.currentPrices = currentPrices;
+      
+      // Get Binance's exact portfolio values using multiple API endpoints
+      let totalPortfolioValue = 0;
+      let spotWalletValue = 0;
+      let futuresWalletValue = 0;
+      
+      // Get futures wallet value directly (this usually works reliably)
+      if (result.futures && result.futures.totalWalletBalance) {
+        futuresWalletValue = parseFloat(result.futures.totalWalletBalance);
+        console.log('Futures wallet balance from API:', futuresWalletValue);
+      }
+      
+      // Try to get exact spot wallet value using Binance's APIs
+      try {
+        console.log('Attempting to get exact spot wallet value from Binance...');
+        
+        // Method 1: Try account snapshot with exact USD value
+        if (result.walletSnapshot && result.walletSnapshot.totalAssetOfBtc) {
+          const btcPrice = await this.makePublicRequest('/api/v3/ticker/price', { symbol: 'BTCUSDT' });
+          if (btcPrice && btcPrice.price) {
+            const calculatedSpotValue = parseFloat(result.walletSnapshot.totalAssetOfBtc) * parseFloat(btcPrice.price);
+            console.log('Spot value from snapshot:', calculatedSpotValue);
+            spotWalletValue = calculatedSpotValue;
+          }
+        }
+        
+        // Method 2: Try capital config for exact values
+        if (spotWalletValue === 0) {
+          try {
+            const capitalConfig = await this.makeRequest('/sapi/v1/capital/config/getall');
+            if (capitalConfig && Array.isArray(capitalConfig)) {
+              console.log('Using capital config for exact spot value calculation');
+              
+              let exactSpotValue = 0;
+              for (const asset of capitalConfig) {
+                const totalBalance = parseFloat(asset.free) + parseFloat(asset.locked);
+                if (totalBalance > 0.00001) {
+                  if (['USDT', 'BUSD', 'USDC', 'FDUSD'].includes(asset.coin)) {
+                    exactSpotValue += totalBalance;
+                    console.log(`${asset.coin}: $${totalBalance.toFixed(6)}`);
+                  } else if (priceMap[asset.coin]) {
+                    const assetValue = totalBalance * priceMap[asset.coin];
+                    exactSpotValue += assetValue;
+                    console.log(`${asset.coin}: ${totalBalance} * $${priceMap[asset.coin]} = $${assetValue.toFixed(6)}`);
+                  }
+                }
+              }
+              spotWalletValue = exactSpotValue;
+              console.log('Exact spot wallet value from capital config:', spotWalletValue);
+            }
+          } catch (capitalError) {
+            console.warn('Capital config failed:', capitalError.message);
+          }
+        }
+        
+        // Method 3: Try to get the exact total portfolio value using different API endpoints
+        try {
+          // Try wallet status endpoint which might give us the total
+          const walletStatus = await this.makeRequest('/sapi/v1/account/status');
+          console.log('Wallet status:', walletStatus);
+          
+          // Try the asset distribution endpoint for total valuation
+          const userAsset = await this.makeRequest('/sapi/v3/asset/getUserAsset');
+          if (userAsset && Array.isArray(userAsset)) {
+            console.log('User asset data length:', userAsset.length);
+            console.log('Sample user assets:', userAsset.slice(0, 3));
+          }
+          
+        } catch (statusError) {
+          console.warn('Additional portfolio APIs failed:', statusError.message);
+        }
+        
+      } catch (error) {
+        console.warn('Failed to get exact values from Binance APIs:', error.message);
+      }
+      
+      // Calculate total portfolio value from the components we have
+      totalPortfolioValue = spotWalletValue + futuresWalletValue;
+      
+      console.log('Portfolio calculation summary:', {
+        spotWallet: spotWalletValue,
+        futuresWallet: futuresWalletValue,
+        total: totalPortfolioValue,
+        source: 'Direct Binance APIs'
+      });
+      
+      // Final fallback: calculate basic value only if everything else fails
+      if (totalPortfolioValue === 0) {
+        console.warn('Using final fallback calculation - no direct Binance values available');
+        totalPortfolioValue = this.calculateBasicPortfolioValue(result.spot, result.futures);
+      }
+      
+      result.totalPortfolioValue = totalPortfolioValue;
+      result.spotWalletValue = spotWalletValue;
+      result.futuresWalletValue = futuresWalletValue;
+      console.log('Final values:', { totalPortfolioValue, spotWalletValue, futuresWalletValue });
+      
+      return result;
+    } catch (error) {
+      console.warn('Failed to get enhanced account info:', error.message);
+      // Fallback to basic spot account
+      try {
+        const spotAccount = await this.makeRequest('/api/v3/account');
+        const basicValue = this.calculateBasicPortfolioValue(spotAccount, null);
+        return {
+          spot: spotAccount,
+          futures: null,
+          walletSnapshot: null,
+          totalPortfolioValue: basicValue
+        };
+      } catch (fallbackError) {
+        console.error('Even fallback failed:', fallbackError.message);
+        throw fallbackError;
+      }
+    }
+  }
+
+  // Get account snapshot with direct portfolio values from Binance
+  async getAccountSnapshot() {
+    try {
+      console.log('Fetching account snapshot for exact portfolio values...');
+      
+      // Method 1: Try the account snapshot endpoint for spot portfolio
+      const snapshot = await this.makeRequest('/sapi/v1/accountSnapshot', { 
+        type: 'SPOT',
+        limit: 1 
+      });
+      
+      if (snapshot && snapshot.snapshotVos && snapshot.snapshotVos.length > 0) {
+        const latestSnapshot = snapshot.snapshotVos[0];
+        console.log('Got account snapshot:', latestSnapshot);
+        return latestSnapshot.data;
+      }
+      
+      console.warn('No snapshot data available, trying alternative methods...');
+      
+      // Method 2: Try capital config endpoint as alternative
+      try {
+        const capitalConfig = await this.makeRequest('/sapi/v1/capital/config/getall');
+        console.log('Got capital config with', capitalConfig?.length || 0, 'assets');
+        
+        // Just return the raw data, let the main function calculate
+        return { 
+          source: 'capital-config',
+          assets: capitalConfig 
+        };
+        
+      } catch (altError) {
+        console.warn('Capital config endpoint also failed:', altError.message);
+      }
+      
+      // Method 3: Try account API summary which might have total USD value
+      try {
+        const accountSummary = await this.makeRequest('/sapi/v1/accountSnapshot', { 
+          type: 'SPOT',
+          limit: 5 
+        });
+        console.log('Account summary attempt:', accountSummary);
+        
+        if (accountSummary && accountSummary.snapshotVos) {
+          // Find the most recent snapshot with totalAssetOfUsd or similar
+          const recentSnapshot = accountSummary.snapshotVos.find(snap => 
+            snap.data && (snap.data.totalAssetOfUsd || snap.data.totalAssetOfBtc)
+          );
+          
+          if (recentSnapshot) {
+            console.log('Found snapshot with USD/BTC value:', recentSnapshot.data);
+            return recentSnapshot.data;
+          }
+        }
+        
+      } catch (summaryError) {
+        console.warn('Account summary failed:', summaryError.message);
+      }
+      
+      return null;
+    } catch (error) {
+      console.warn('Failed to get account snapshot:', error.message);
+      return null;
+    }
+  }
+
+  // Calculate total portfolio value using current prices
+  calculatePortfolioValue(spotAccount, futuresAccount, prices) {
+    let totalValue = 0;
+    
+    console.log('Calculating portfolio value with:', {
+      spotBalances: spotAccount?.balances?.length || 0,
+      futuresAssets: futuresAccount?.assets?.length || 0,
+      pricesCount: prices?.length || 0
+    });
+    
+    // Create price lookup map
+    const priceMap = {};
+    if (prices && Array.isArray(prices)) {
+      prices.forEach(price => {
+        if (price.symbol && price.price) {
+          priceMap[price.symbol] = parseFloat(price.price);
+        }
+      });
+    }
+    
+    console.log('Price map sample:', Object.keys(priceMap).slice(0, 5));
+    
+    // Calculate spot account value
+    if (spotAccount && spotAccount.balances) {
+      let spotValue = 0;
+      spotAccount.balances.forEach(balance => {
+        const amount = parseFloat(balance.free) + parseFloat(balance.locked);
+        if (amount > 0.0001) { // Ignore dust amounts
+          const asset = balance.asset;
+          let assetValue = 0;
+          
+          if (asset === 'USDT' || asset === 'BUSD' || asset === 'USDC') {
+            // Stablecoins = $1
+            assetValue = amount;
+          } else {
+            // Try to find price in USDT pair
+            const usdtSymbol = `${asset}USDT`;
+            const btcSymbol = `${asset}BTC`;
+            
+            if (priceMap[usdtSymbol]) {
+              assetValue = amount * priceMap[usdtSymbol];
+            } else if (priceMap[btcSymbol] && priceMap['BTCUSDT']) {
+              // Convert via BTC
+              assetValue = amount * priceMap[btcSymbol] * priceMap['BTCUSDT'];
+            }
+          }
+          
+          if (assetValue > 0.01) { // Only log significant values
+            console.log(`${asset}: ${amount} = $${assetValue.toFixed(2)}`);
+          }
+          spotValue += assetValue;
+        }
+      });
+      totalValue += spotValue;
+      console.log('Total spot value:', spotValue);
+    }
+    
+    // Calculate futures account value
+    if (futuresAccount && futuresAccount.assets) {
+      let futuresValue = 0;
+      futuresAccount.assets.forEach(asset => {
+        const amount = parseFloat(asset.walletBalance);
+        if (amount > 0.0001) {
+          let assetValue = 0;
+          
+          if (asset.asset === 'USDT' || asset.asset === 'BUSD') {
+            assetValue = amount;
+          } else {
+            const usdtSymbol = `${asset.asset}USDT`;
+            if (priceMap[usdtSymbol]) {
+              assetValue = amount * priceMap[usdtSymbol];
+            }
+          }
+          
+          if (assetValue > 0.01) {
+            console.log(`Futures ${asset.asset}: ${amount} = $${assetValue.toFixed(2)}`);
+          }
+          futuresValue += assetValue;
+        }
+      });
+      totalValue += futuresValue;
+      console.log('Total futures value:', futuresValue);
+    }
+    
+    console.log('Final total portfolio value:', totalValue);
+    return totalValue;
+  }
+
+  // Calculate basic portfolio value using only stablecoins (fallback when no prices available)
+  calculateBasicPortfolioValue(spotAccount, futuresAccount) {
+    let totalValue = 0;
+    
+    console.log('Calculating basic portfolio value (stablecoins only)');
+    
+    // Calculate spot account value (stablecoins only)
+    if (spotAccount && spotAccount.balances) {
+      let spotValue = 0;
+      spotAccount.balances.forEach(balance => {
+        const amount = parseFloat(balance.free) + parseFloat(balance.locked);
+        if (amount > 0.0001) {
+          const asset = balance.asset;
+          
+          if (asset === 'USDT' || asset === 'BUSD' || asset === 'USDC' || 
+              asset === 'TUSD' || asset === 'USDP' || asset === 'DAI') {
+            // Stablecoins = $1
+            spotValue += amount;
+            console.log(`Spot ${asset}: ${amount} = $${amount.toFixed(2)}`);
+          }
+        }
+      });
+      totalValue += spotValue;
+      console.log('Total spot stablecoin value:', spotValue);
+    }
+    
+    // Calculate futures account value (stablecoins only)
+    if (futuresAccount && futuresAccount.assets) {
+      let futuresValue = 0;
+      futuresAccount.assets.forEach(asset => {
+        const amount = parseFloat(asset.walletBalance);
+        if (amount > 0.0001) {
+          if (asset.asset === 'USDT' || asset.asset === 'BUSD' || asset.asset === 'USDC' ||
+              asset.asset === 'TUSD' || asset.asset === 'USDP' || asset.asset === 'DAI') {
+            futuresValue += amount;
+            console.log(`Futures ${asset.asset}: ${amount} = $${amount.toFixed(2)}`);
+          }
+        }
+      });
+      totalValue += futuresValue;
+      console.log('Total futures stablecoin value:', futuresValue);
+    }
+    
+    console.log('Final basic portfolio value:', totalValue);
+    return totalValue;
+  }
+
+  // Get futures account information with P&L data
+  async getFuturesAccountInfo() {
+    try {
+      const futuresAccount = await this.makeFuturesRequest('/fapi/v2/account');
+      
+      // Calculate total unrealized PnL from positions
+      if (futuresAccount && futuresAccount.positions) {
+        let totalUnrealizedPnl = 0;
+        futuresAccount.positions.forEach(position => {
+          if (parseFloat(position.positionAmt) !== 0) {
+            totalUnrealizedPnl += parseFloat(position.unrealizedProfit || 0);
+          }
+        });
+        futuresAccount.totalUnrealizedPnl = totalUnrealizedPnl;
+      }
+      
+      return futuresAccount;
+    } catch (error) {
+      console.warn('Futures account not available or not enabled:', error.message);
+      return null;
+    }
+  }
+
+  // Get futures income/PnL history
+  async getFuturesIncome(symbol = null, incomeType = null, limit = 100) {
+    try {
+      const params = { limit };
+      if (symbol) params.symbol = symbol;
+      if (incomeType) params.incomeType = incomeType; // REALIZED_PNL, FUNDING_FEE, etc.
+      
+      const income = await this.makeFuturesRequest('/fapi/v1/income', params);
+      return income || [];
+    } catch (error) {
+      console.warn('Failed to get futures income:', error.message);
+      return [];
+    }
+  }
+
+  // Get current prices for all symbols
+  async getCurrentPrices(symbols = []) {
+    try {
+      if (symbols.length === 0) {
+        // Get all symbol prices - this is a public endpoint, no auth needed
+        return await this.makePublicRequest('/api/v3/ticker/price');
+      } else {
+        // Get specific symbol prices
+        const prices = await Promise.allSettled(
+          symbols.map(symbol => this.makePublicRequest('/api/v3/ticker/price', { symbol }))
+        );
+        return prices
+          .filter(result => result.status === 'fulfilled')
+          .map(result => result.value);
+      }
+    } catch (error) {
+      console.warn('Failed to get current prices:', error.message);
+      return [];
+    }
+  }
+
+  // Get 24h ticker statistics
+  async get24hTicker(symbol) {
+    try {
+      const params = symbol ? { symbol } : {};
+      return await this.makePublicRequest('/api/v3/ticker/24hr', params);
+    } catch (error) {
+      console.warn('Failed to get 24h ticker:', error.message);
+      return null;
+    }
+  }
+
+  // Get futures orders for a symbol
+  async getFuturesOrders(symbol = null, limit = 50) {
+    try {
+      if (!symbol) {
+        // Get futures account first to find active positions
+        const futuresAccount = await this.getFuturesAccountInfo();
+        if (!futuresAccount) return [];
+        
+        const activePositions = futuresAccount.positions
+          ?.filter(pos => parseFloat(pos.positionAmt) !== 0)
+          ?.map(pos => pos.symbol)
+          ?.slice(0, 5) || [];
+        
+        if (activePositions.length === 0) {
+          // Try common futures symbols
+          const commonFuturesSymbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT'];
+          const allOrders = [];
+          
+          for (const futuresSymbol of commonFuturesSymbols) {
+            try {
+              const orders = await this.makeFuturesRequest('/fapi/v1/allOrders', { 
+                symbol: futuresSymbol, 
+                limit: Math.min(limit, 20) 
+              });
+              if (orders && orders.length > 0) {
+                // Mark as futures orders
+                const futuresOrders = orders.map(order => ({
+                  ...order,
+                  isFutures: true,
+                  market: 'Futures'
+                }));
+                allOrders.push(...futuresOrders);
+              }
+            } catch (error) {
+              continue;
+            }
+            
+            if (allOrders.length >= limit) break;
+          }
+          
+          return allOrders.slice(0, limit);
+        }
+        
+        // Get orders for active positions
+        const allOrders = [];
+        for (const symbol of activePositions) {
+          try {
+            const orders = await this.makeFuturesRequest('/fapi/v1/allOrders', { 
+              symbol, 
+              limit: Math.min(limit, 10) 
+            });
+            if (orders && orders.length > 0) {
+              const futuresOrders = orders.map(order => ({
+                ...order,
+                isFutures: true,
+                market: 'Futures'
+              }));
+              allOrders.push(...futuresOrders);
+            }
+          } catch (error) {
+            continue;
+          }
+          
+          if (allOrders.length >= limit) break;
+        }
+        
+        return allOrders.slice(0, limit);
+      }
+      
+      // Get orders for specific symbol
+      const orders = await this.makeFuturesRequest('/fapi/v1/allOrders', { symbol, limit });
+      return orders.map(order => ({
+        ...order,
+        isFutures: true,
+        market: 'Futures'
+      }));
+    } catch (error) {
+      console.warn('Failed to get futures orders:', error.message);
+      return [];
+    }
+  }
+
+  // Get all orders (both spot and futures) - only from the past week
+  async getAllOrders(symbol = null, limit = 100) {
+    try {
+      const allOrders = [];
+      const oneWeekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000); // 7 days ago
+      
+      console.log('Fetching recent orders from the past week only...');
+      console.log('One week ago timestamp:', oneWeekAgo, new Date(oneWeekAgo).toISOString());
+      
+      // If symbol is provided, get orders for that specific symbol from both markets
+      if (symbol) {
+        const [spotOrders, futuresOrders] = await Promise.allSettled([
+          this.getRecentSpotOrders(symbol, limit, oneWeekAgo),
+          this.getRecentFuturesOrders(symbol, limit, oneWeekAgo)
+        ]);
+        
+        if (spotOrders.status === 'fulfilled') {
+          allOrders.push(...spotOrders.value.map(order => ({
+            ...order,
+            market: 'Spot'
+          })));
+        }
+        
+        if (futuresOrders.status === 'fulfilled') {
+          allOrders.push(...futuresOrders.value);
+        }
+        
+        // Filter by time and sort (most recent first)
+        const recentOrders = allOrders.filter(order => 
+          (order.time || order.updateTime || 0) >= oneWeekAgo
+        );
+        recentOrders.sort((a, b) => (b.time || b.updateTime || 0) - (a.time || a.updateTime || 0));
+        return recentOrders.slice(0, limit);
+      }
+      
+      // For getting recent orders across all symbols, use multiple strategies with time filtering
+      console.log('Fetching recent orders from multiple sources...');
+      
+      // Strategy 1: Get recent futures orders from active positions and common symbols
+      try {
+        const futuresOrders = await this.getRecentFuturesOrders(null, Math.floor(limit * 0.6), oneWeekAgo);
+        allOrders.push(...futuresOrders);
+        console.log(`Got ${futuresOrders.length} recent futures orders`);
+      } catch (error) {
+        console.warn('Failed to get futures orders:', error.message);
+      }
+      
+      // Strategy 2: Get recent spot orders from common symbols with time filter
+      try {
+        const commonSymbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT', 'DOGEUSDT', 'XRPUSDT'];
+        for (const symbol of commonSymbols) {
+          if (allOrders.length >= limit) break;
+          
+          try {
+            const symbolOrders = await this.getRecentSpotOrders(symbol, 20, oneWeekAgo);
+            const recentSpotOrders = symbolOrders
+              .filter(order => (order.time || order.updateTime || 0) >= oneWeekAgo)
+              .map(order => ({
+                ...order,
+                market: 'Spot'
+              }));
+            allOrders.push(...recentSpotOrders);
+          } catch (error) {
+            continue; // Skip symbols that error
+          }
+        }
+        console.log(`Total orders after spot symbols: ${allOrders.length}`);
+      } catch (error) {
+        console.warn('Failed to get spot orders from common symbols:', error.message);
+      }
+      
+      // Strategy 3: Get recent trades if we still don't have enough orders
+      if (allOrders.length < 5) {
+        try {
+          console.log('Getting recent trades to fill order list...');
+          const trades = await this.getRecentTrades(15);
+          if (trades && trades.length > 0) {
+            const tradeOrders = trades
+              .filter(trade => trade.time >= oneWeekAgo)
+              .map(trade => ({
+                orderId: trade.orderId,
+                symbol: trade.symbol,
+                side: trade.side,
+                type: trade.type,
+                origQty: trade.origQty,
+                executedQty: trade.executedQty,
+                price: trade.price,
+                status: trade.status,
+                time: trade.time,
+                market: 'Spot'
+              }));
+            allOrders.push(...tradeOrders);
+            console.log(`Added ${tradeOrders.length} recent trades as orders`);
+          }
+        } catch (error) {
+          console.warn('Failed to get recent trades (non-critical):', error.message);
+          // This is non-critical, continue without trades
+        }
+      }
+      
+      // Filter by time, remove duplicates and sort by time (most recent first)
+      const recentOrders = allOrders.filter(order => 
+        (order.time || order.updateTime || 0) >= oneWeekAgo
+      );
+      
+      const uniqueOrders = recentOrders.filter((order, index, self) => 
+        index === self.findIndex(o => 
+          o.orderId === order.orderId && 
+          o.symbol === order.symbol && 
+          o.market === order.market
+        )
+      );
+      
+      uniqueOrders.sort((a, b) => (b.time || b.updateTime || 0) - (a.time || a.updateTime || 0));
+      
+      console.log(`Returning ${uniqueOrders.length} unique recent orders from the past week`);
+      return uniqueOrders.slice(0, limit);
+      
+    } catch (error) {
+      console.error('Error getting all orders:', error.message);
+      return [];
+    }
+  }
+
+  // Get recent spot orders with time filtering
+  async getRecentSpotOrders(symbol, limit = 50, startTime = null) {
+    try {
+      const params = { symbol, limit };
+      if (startTime) {
+        params.startTime = startTime;
+      }
+      
+      const orders = await this.makeRequest('/api/v3/allOrders', params);
+      return orders || [];
+    } catch (error) {
+      console.warn(`Failed to get recent spot orders for ${symbol}:`, error.message);
+      return [];
+    }
+  }
+
+  // Get recent futures orders with time filtering
+  async getRecentFuturesOrders(symbol = null, limit = 50, startTime = null) {
+    try {
+      if (!symbol) {
+        // Get futures account to find active positions
+        const futuresAccount = await this.getFuturesAccountInfo();
+        if (!futuresAccount) return [];
+        
+        const activePositions = futuresAccount.positions
+          ?.filter(pos => parseFloat(pos.positionAmt) !== 0)
+          ?.map(pos => pos.symbol)
+          ?.slice(0, 5) || [];
+        
+        if (activePositions.length === 0) {
+          // Try common futures symbols
+          const commonFuturesSymbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT'];
+          const allOrders = [];
+          
+          for (const futuresSymbol of commonFuturesSymbols) {
+            try {
+              const params = { symbol: futuresSymbol, limit: Math.min(limit, 20) };
+              if (startTime) params.startTime = startTime;
+              
+              const orders = await this.makeFuturesRequest('/fapi/v1/allOrders', params);
+              if (orders && orders.length > 0) {
+                const futuresOrders = orders
+                  .filter(order => !startTime || (order.time || order.updateTime || 0) >= startTime)
+                  .map(order => ({
+                    ...order,
+                    isFutures: true,
+                    market: 'Futures'
+                  }));
+                allOrders.push(...futuresOrders);
+              }
+            } catch (error) {
+              continue;
+            }
+            
+            if (allOrders.length >= limit) break;
+          }
+          
+          return allOrders.slice(0, limit);
+        }
+        
+        // Get orders for active positions
+        const allOrders = [];
+        for (const symbol of activePositions) {
+          try {
+            const params = { symbol, limit: Math.min(limit, 15) };
+            if (startTime) params.startTime = startTime;
+            
+            const orders = await this.makeFuturesRequest('/fapi/v1/allOrders', params);
+            if (orders && orders.length > 0) {
+              const futuresOrders = orders
+                .filter(order => !startTime || (order.time || order.updateTime || 0) >= startTime)
+                .map(order => ({
+                  ...order,
+                  isFutures: true,
+                  market: 'Futures'
+                }));
+              allOrders.push(...futuresOrders);
+            }
+          } catch (error) {
+            continue;
+          }
+          
+          if (allOrders.length >= limit) break;
+        }
+        
+        return allOrders.slice(0, limit);
+      }
+      
+      // Get orders for specific symbol
+      const params = { symbol, limit };
+      if (startTime) params.startTime = startTime;
+      
+      const orders = await this.makeFuturesRequest('/fapi/v1/allOrders', params);
+      return orders
+        .filter(order => !startTime || (order.time || order.updateTime || 0) >= startTime)
+        .map(order => ({
+          ...order,
+          isFutures: true,
+          market: 'Futures'
+        }));
+    } catch (error) {
+      console.warn('Failed to get recent futures orders:', error.message);
+      return [];
+    }
+  }
+
+  // Get recent trades for a symbol with time filtering
+  async getRecentTrades(limit = 10, startTime = null) {
+    try {
+      const commonSymbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT'];
+      const allTrades = [];
+      
+      for (const symbol of commonSymbols) {
+        try {
+          const params = { 
+            symbol, 
+            limit: Math.floor(limit / commonSymbols.length) + 5 // Get a few extra
+          };
+          
+          // Add startTime if provided
+          if (startTime) {
+            params.startTime = startTime;
+          }
+          
+          const trades = await this.makeRequest('/api/v3/myTrades', params);
+          if (trades && trades.length > 0) {
+            const filteredTrades = trades
+              .filter(trade => !startTime || trade.time >= startTime)
+              .map(trade => ({ ...trade, symbol }));
+            allTrades.push(...filteredTrades);
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+      
+      const sortedTrades = allTrades.sort((a, b) => b.time - a.time);
+      return sortedTrades.slice(0, limit);
+    } catch (error) {
+      console.warn('Failed to get recent trades:', error.message);
+      return [];
+    }
+  }
+
+  // Get spot orders for a symbol
+  async getSpotOrders(symbol = null, limit = 100) {
+    // For Binance API, we need to specify a symbol
+    // If no symbol provided, we'll get orders for active symbols from account
+    if (!symbol) {
+      try {
+        // First, try to get orders for common symbols
+        const orders = await this.getOrdersForCommonSymbols(limit);
+        if (orders.length > 0) {
+          return orders;
+        }
+        
+        // If no orders found, try to get recent trades instead
+        const trades = await this.getRecentTrades(limit);
+        if (trades.length > 0) {
+          return trades;
+        }
+        
+        // If still no data, try getting account info to find active symbols
+        const account = await this.makeRequest('/api/v3/account');
+        const activeSymbols = account.balances
+          .filter(balance => parseFloat(balance.free) > 0 || parseFloat(balance.locked) > 0)
+          .map(balance => balance.asset)
+          .slice(0, 3); // Limit to first 3 symbols
+        
+        const allOrders = [];
+        for (const asset of activeSymbols) {
+          try {
+            const commonPairs = [`${asset}USDT`, `${asset}BTC`, `${asset}ETH`];
+            for (const pair of commonPairs) {
+              try {
+                const orders = await this.makeRequest('/api/v3/allOrders', { 
+                  symbol: pair, 
+                  limit: Math.min(limit, 10) 
+                });
+                if (orders && orders.length > 0) {
+                  allOrders.push(...orders.slice(0, 5)); // Limit per symbol
+                  break;
+                }
+              } catch (e) {
+                continue;
+              }
+            }
+          } catch (error) {
+            continue;
+          }
+          
+          if (allOrders.length >= limit) break;
+        }
+        
+        return allOrders.slice(0, limit);
+      } catch (error) {
+        console.warn('Failed to get orders without symbol:', error.message);
+        // Return empty array instead of throwing
+        return [];
+      }
+    }
+    
+    // If symbol is provided, get orders for that specific symbol
+    const params = { symbol, limit };
+    return await this.makeRequest('/api/v3/allOrders', params);
+  }
+
+  // Helper method to get orders for common trading pairs
+  async getOrdersForCommonSymbols(limit = 100) {
+    const commonSymbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT'];
+    const allOrders = [];
+    
+    for (const symbol of commonSymbols) {
+      try {
+        const orders = await this.makeRequest('/api/v3/allOrders', { 
+          symbol, 
+          limit: Math.min(limit, 20) 
+        });
+        if (orders && orders.length > 0) {
+          allOrders.push(...orders);
+        }
+      } catch (error) {
+        // Skip symbols that don't have orders or aren't valid
+        continue;
+      }
+      
+      // Break early if we have enough orders
+      if (allOrders.length >= limit) break;
+    }
+    
+    return allOrders.slice(0, limit);
+  }
+
+  // Alternative method: Get recent trades instead of all orders
+  async getRecentTrades(limit = 50) {
+    try {
+      // Try to get account trades for common symbols
+      const commonSymbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT'];
+      const allTrades = [];
+      
+      for (const symbol of commonSymbols) {
+        try {
+          const trades = await this.makeRequest('/api/v3/myTrades', { 
+            symbol, 
+            limit: Math.min(limit, 15) 
+          });
+          if (trades && trades.length > 0) {
+            // Convert trades to order-like format
+            const orderLikeTrades = trades.map(trade => ({
+              orderId: trade.orderId,
+              symbol: trade.symbol,
+              status: 'FILLED',
+              side: trade.isBuyer ? 'BUY' : 'SELL',
+              type: 'MARKET',
+              origQty: trade.qty,
+              executedQty: trade.qty,
+              price: trade.price,
+              time: trade.time
+            }));
+            allTrades.push(...orderLikeTrades);
+          }
+        } catch (error) {
+          console.warn(`Failed to get trades for ${symbol}:`, error.message);
+          // Continue with next symbol instead of breaking
+          continue;
+        }
+        
+        if (allTrades.length >= limit) break;
+      }
+      
+      console.log(`Added ${allTrades.length} recent trades as orders`);
+      return allTrades.slice(0, limit);
+    } catch (error) {
+      console.warn('Failed to get recent trades:', error.message);
+      return [];
+    }
+  }
+
+  // Get 24hr ticker price change statistics
+  async get24hrTicker(symbol = null) {
+    if (this.useMockData) {
+      return symbol ? 
+        { symbol, priceChange: "1234.56", priceChangePercent: "2.75" } :
+        [{ symbol: "BTCUSDT", priceChange: "1234.56", priceChangePercent: "2.75" }];
+    }
+
+    try {
+      let url = `/api/v3/ticker/24hr`;
+      const params = {};
+      if (symbol) {
+        params.symbol = symbol;
+      }
+      
+      // This endpoint doesn't require authentication
+      const queryParams = new URLSearchParams(params);
+      const fullUrl = `${this.baseUrl}${url}?${queryParams.toString()}`;
+      
+      const response = await axios.get(fullUrl, { timeout: 10000 });
+      return response.data;
+    } catch (error) {
+      throw new Error(`Failed to get ticker data: ${error.response?.data?.msg || error.message}`);
+    }
+  }
+
+  // Get current open orders (both spot and futures)
+  async getOpenOrders(symbol = null) {
+    try {
+      const [spotOrders, futuresOrders] = await Promise.allSettled([
+        this.getSpotOpenOrders(symbol),
+        this.getFuturesOpenOrders(symbol)
+      ]);
+      
+      const allOpenOrders = [];
+      
+      // Add spot open orders
+      if (spotOrders.status === 'fulfilled') {
+        allOpenOrders.push(...spotOrders.value.map(order => ({
+          ...order,
+          market: 'Spot'
+        })));
+      }
+      
+      // Add futures open orders
+      if (futuresOrders.status === 'fulfilled') {
+        allOpenOrders.push(...futuresOrders.value);
+      }
+      
+      // Sort by time (most recent first)
+      allOpenOrders.sort((a, b) => (b.time || b.updateTime || 0) - (a.time || a.updateTime || 0));
+      
+      return allOpenOrders;
+    } catch (error) {
+      console.warn('Failed to get open orders:', error.message);
+      return [];
+    }
+  }
+
+  // Get spot open orders
+  async getSpotOpenOrders(symbol = null) {
+    const params = {};
+    if (symbol) {
+      params.symbol = symbol;
+    }
+    return await this.makeRequest('/api/v3/openOrders', params);
+  }
+
+  // Get futures open orders
+  async getFuturesOpenOrders(symbol = null) {
+    try {
+      const params = {};
+      if (symbol) {
+        params.symbol = symbol;
+      }
+      const orders = await this.makeFuturesRequest('/fapi/v1/openOrders', params);
+      return orders.map(order => ({
+        ...order,
+        isFutures: true,
+        market: 'Futures'
+      }));
+    } catch (error) {
+      console.warn('Failed to get futures open orders:', error.message);
+      return [];
+    }
+  }
+
+  // Get trading fees
+  async getTradeFee() {
+    return await this.makeRequest('/sapi/v1/asset/tradeFee');
+  }
+}
+
+export default BinanceAPI;
