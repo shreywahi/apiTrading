@@ -11,8 +11,20 @@ const AccountOverview = ({
   totalOrdersCount,
   formatCurrency, 
   calculatePnL,
-  onToggleSection 
+  onToggleSection,
+  accountData 
 }) => {
+  // Check if futures data is available
+  const hasFuturesData = accountData?.futures || accountData?.futuresAccount;
+  
+  // Debug logging for orders count
+  console.log('📊 AccountOverview received:', {
+    openOrdersCount,
+    totalOrdersCount,
+    totalPnL,
+    hasFuturesData
+  });
+  
   return (
     <section className="overview-section">
       <h2>Account Overview</h2>
@@ -35,7 +47,7 @@ const AccountOverview = ({
             <TrendingUp size={24} />
           </div>
           <div className="card-content">
-            <h3>P&L</h3>
+            <h3>P&L {!hasFuturesData && <span style={{ fontSize: '0.7rem', color: '#888' }}>(Spot Only)</span>}</h3>
             <p className={`value ${totalPnL >= 0 ? 'positive' : 'negative'}`}>
               {totalPnL >= 0 ? '+' : ''}{formatCurrency(totalPnL)}
             </p>
@@ -47,6 +59,11 @@ const AccountOverview = ({
                 }
                 return `${pnlPercentage >= 0 ? '+' : ''}${pnlPercentage.toFixed(2)}% return`;
               })()}
+              {!hasFuturesData && (
+                <span style={{ display: 'block', fontSize: '0.6rem', color: '#fbbf24', marginTop: '2px' }}>
+                  💡 Enable Futures for complete P&L
+                </span>
+              )}
             </small>
           </div>
         </div>

@@ -22,7 +22,7 @@ const CORS_PROXIES = [
 const POPULAR_FUTURES_SYMBOLS = [
   'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'XRPUSDT',
   'XLMUSDT', 'BCHUSDT', 'AAVEUSDT', 'ALGOUSDT', 'HBARUSDT',
-  'SOLUSDT', 'PAXGUSDT', 'DOGEUSDT', 'AVAXUSDT', 'MATICUSDT'
+  'SOLUSDT', 'PAXGUSDT', 'DOGEUSDT'
 ];
 
 class BinanceAPI {
@@ -51,6 +51,43 @@ class BinanceAPI {
       console.warn('Failed to sync server time, using local time:', error.message);
       this.timeOffset = 0;
     }
+  }
+
+  // Check API key permissions by testing different endpoints
+  async checkApiPermissions() {
+    console.log('🔍 Checking API key permissions...');
+    const permissions = {
+      spot: false,
+      futures: false,
+      margin: false
+    };
+
+    try {
+      // Test spot trading permissions
+      await this.makeRequest('/api/v3/account');
+      permissions.spot = true;
+      console.log('✅ Spot trading permissions: OK');
+    } catch (error) {
+      console.warn('❌ Spot trading permissions: FAILED -', error.message);
+    }
+
+    try {
+      // Test futures trading permissions
+      await this.makeFuturesRequest('/fapi/v2/account');
+      permissions.futures = true;
+      console.log('✅ Futures trading permissions: OK');
+    } catch (error) {
+      console.warn('❌ Futures trading permissions: FAILED -', error.message);
+      if (error.message.includes('403')) {
+        console.warn('💡 To enable futures trading:');
+        console.warn('   1. Go to Binance API Management');
+        console.warn('   2. Edit your API key');
+        console.warn('   3. Enable "Enable Futures" permission');
+        console.warn('   4. Add IP address if using IP restrictions');
+      }
+    }
+
+    return permissions;
   }
 
   // Get synchronized timestamp
@@ -174,10 +211,19 @@ class BinanceAPI {
 
   // Create authenticated request headers
   getHeaders() {
-    return {
+    const headers = {
       'X-MBX-APIKEY': this.apiKey,
       'Content-Type': 'application/json',
     };
+    
+    // Debug logging to check if API key is being set
+    if (!this.apiKey) {
+      console.warn('⚠️ No API key found in headers!');
+    } else {
+      console.log('✅ API key set in headers (first 8 chars):', this.apiKey.substring(0, 8) + '...');
+    }
+    
+    return headers;
   }
 
   // Helper method for public endpoints (no authentication needed)
@@ -358,13 +404,21 @@ class BinanceAPI {
     const signature = this.generateSignature(queryParams.toString());
     queryParams.append('signature', signature);
 
-    // Try futures endpoints
+    // Try futures endpoints with better fallback handling
     const endpointsToTry = [API_ENDPOINTS.FUTURES_PROXY, API_ENDPOINTS.FUTURES_DIRECT];
     let lastError = null;
+    let proxyFailed = false;
 
     for (const baseUrl of endpointsToTry) {
       try {
-        const url = `${baseUrl}${endpoint}?${queryParams.toString()}`;
+        // For proxy endpoints, strip /fapi from the beginning of endpoint
+        // For direct endpoints, keep the full endpoint
+        let finalEndpoint = endpoint;
+        if (baseUrl === API_ENDPOINTS.FUTURES_PROXY && endpoint.startsWith('/fapi/')) {
+          finalEndpoint = endpoint.substring(5); // Remove '/fapi' prefix
+        }
+        
+        const url = `${baseUrl}${finalEndpoint}?${queryParams.toString()}`;
         console.log('Trying futures API request to:', url);
         
         const response = await axios.get(url, { 
@@ -376,21 +430,48 @@ class BinanceAPI {
         return response.data;
       } catch (error) {
         console.warn(`❌ Futures failed with ${baseUrl}:`, error.message);
+        
+        // If proxy fails with 403, mark it as failed and continue to direct
+        if (baseUrl === API_ENDPOINTS.FUTURES_PROXY && error.response?.status === 403) {
+          proxyFailed = true;
+          console.warn('🚨 Local proxy returned 403 - may be a CORS/authentication issue');
+          console.warn('📡 Trying direct endpoint as fallback...');
+        }
+        
         lastError = error;
         continue;
       }
+    }
+
+    // If all attempts failed and proxy returned 403, provide specific guidance
+    if (proxyFailed) {
+      console.error('🚨 Local proxy failed with 403 - possible causes:');
+      console.error('  1. API key missing futures trading permissions');
+      console.error('  2. IP whitelist restrictions');
+      console.error('  3. Proxy configuration issues');
     }
 
     throw this.handleApiError(lastError);
   }
 
   handleApiError(error) {
+    console.error('API Error Details:', {
+      status: error.response?.status,
+      data: error.response?.data,
+      headers: error.response?.headers,
+      message: error.message
+    });
+    
     if (error.response?.data?.msg) {
       throw new Error(error.response.data.msg);
     } else if (error.response?.status === 400) {
       throw new Error('Invalid API request. Please check your API credentials and permissions.');
     } else if (error.response?.status === 403) {
-      throw new Error('Access forbidden. Please check your API key permissions.');
+      console.warn('⚠️ 403 Forbidden - This could indicate:');
+      console.warn('  - API key missing required permissions for futures trading');
+      console.warn('  - API key restrictions (IP whitelisting, etc.)');
+      console.warn('  - Local proxy authentication issues');
+      throw new Error('Access forbidden. Please ensure your API key has futures trading permissions and check IP restrictions.');
     } else if (error.response?.status === 401) {
       throw new Error('Unauthorized. Please check your API credentials.');
     } else if (error.code === 'ECONNABORTED') {
@@ -822,11 +903,20 @@ class BinanceAPI {
           }
         });
         futuresAccount.totalUnrealizedPnl = totalUnrealizedPnl;
+        console.log('✅ Futures account loaded with P&L:', totalUnrealizedPnl);
       }
       
       return futuresAccount;
     } catch (error) {
       console.warn('Futures account not available or not enabled:', error.message);
+      
+      // If it's a permission error, provide guidance but return null
+      if (error.message.includes('403') || error.message.includes('Access forbidden')) {
+        console.warn('💡 Futures trading appears to be disabled for this API key');
+        console.warn('   P&L calculations will only include spot holdings');
+        console.warn('   To enable futures: Go to Binance API Management > Edit API Key > Enable Futures');
+      }
+      
       return null;
     }
   }

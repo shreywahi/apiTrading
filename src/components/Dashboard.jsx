@@ -12,6 +12,7 @@ import PerformanceIndicator from './common/PerformanceIndicator';
 // Hooks
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useOptimizedDashboardData } from '../hooks/useOptimizedDashboardData';
+import { useUltraOptimizedDashboardData } from '../hooks/useUltraOptimizedDashboardData';
 import { useSorting } from '../hooks/useSorting';
 import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import { useCurrency } from '../hooks/useCurrency';
@@ -31,17 +32,32 @@ const Dashboard = ({ binanceApi, onLogout }) => {
   const [activeFuturesTab, setActiveFuturesTab] = useState('open-orders');
   const [darkMode, setDarkMode] = useState(true);
   const [useOptimizedFetch, setUseOptimizedFetch] = useState(true);
+  const [useUltraOptimization, setUseUltraOptimization] = useState(true);
 
   // Performance optimization - extend API with optimizations on first load
   useEffect(() => {
     if (binanceApi && !binanceApi.isOptimized) {
       extendBinanceApiWithOptimizations(binanceApi);
       binanceApi.isOptimized = true;
+      
+      // Check API permissions for better error handling
+      binanceApi.checkApiPermissions?.()
+        .then(permissions => {
+          console.log('📋 API Permissions:', permissions);
+          if (!permissions.futures) {
+            console.warn('⚠️ Futures trading not enabled - some features may not work');
+          }
+        })
+        .catch(error => {
+          console.warn('Could not check API permissions:', error.message);
+        });
     }
   }, [binanceApi]);
 
-  // Choose data fetching strategy based on optimization setting
-  const dataHook = useOptimizedFetch ? useOptimizedDashboardData : useDashboardData;
+  // Choose data fetching strategy based on optimization level
+  const dataHook = useUltraOptimization ? 
+    useUltraOptimizedDashboardData : 
+    (useOptimizedFetch ? useOptimizedDashboardData : useDashboardData);
   
   // Custom hooks
   const {
@@ -57,8 +73,10 @@ const Dashboard = ({ binanceApi, onLogout }) => {
     loading,
     error,
     refreshing,
-    fetchData,
-    fastRefresh
+    refresh: fetchData,
+    fastRefresh,
+    performanceMetrics,
+    getOptimizationStats
   } = dataHook(binanceApi);
 
   const { sortConfig, handleSort, sortData, SortIndicator } = useSorting();
@@ -90,6 +108,57 @@ const Dashboard = ({ binanceApi, onLogout }) => {
     // Auto-refresh should only start paused on initial load
   }, []);
 
+  // Error message renderer with helpful guidance
+  const renderError = (error) => {
+    if (error?.includes('Access forbidden') || error?.includes('403')) {
+      return (
+        <div className="error-message" style={{ 
+          background: '#fee2e2', 
+          border: '1px solid #fecaca', 
+          padding: '1rem', 
+          borderRadius: '8px',
+          margin: '1rem 0' 
+        }}>
+          <h3 style={{ color: '#dc2626', marginTop: 0 }}>🚨 API Permissions Issue</h3>
+          <p><strong>403 Forbidden Error:</strong> Your API key may not have the required permissions.</p>
+          
+          <div style={{ marginTop: '1rem' }}>
+            <h4>To fix this issue:</h4>
+            <ol style={{ paddingLeft: '1.5rem' }}>
+              <li>Go to <a href="https://www.binance.com/en/my/settings/api-management" target="_blank" rel="noopener noreferrer">Binance API Management</a></li>
+              <li>Click "Edit" on your API key</li>
+              <li>Enable the following permissions:
+                <ul style={{ marginTop: '0.5rem' }}>
+                  <li>✅ <strong>Enable Reading</strong> (required)</li>
+                  <li>✅ <strong>Enable Futures</strong> (for futures data)</li>
+                </ul>
+              </li>
+              <li>If using IP restrictions, add your current IP address</li>
+              <li>Refresh this page after making changes</li>
+            </ol>
+          </div>
+          
+          <p style={{ marginTop: '1rem', fontSize: '0.9em', color: '#6b7280' }}>
+            <strong>Note:</strong> Only "Enable Reading" and "Enable Futures" permissions are needed for this dashboard. 
+            Never enable "Enable Trading" unless specifically required.
+          </p>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="error-message" style={{ 
+        background: '#fee2e2', 
+        border: '1px solid #fecaca', 
+        padding: '1rem', 
+        borderRadius: '8px',
+        margin: '1rem 0' 
+      }}>
+        <p style={{ color: '#dc2626', margin: 0 }}>{error}</p>
+      </div>
+    );
+  };
+
   const toggleSection = (sectionName) => {
     setExpandedSection(sectionName);
   };
@@ -100,15 +169,50 @@ const Dashboard = ({ binanceApi, onLogout }) => {
 
   if (error) {
     return (
-      <ErrorDisplay 
-        error={error}
-        onRetry={() => fetchData()}
-        onLogout={onLogout}
-      />
+      <div className="dashboard-container">
+        <div className="dashboard-header">
+          <h1>Trading Dashboard</h1>
+          <button onClick={onLogout} className="logout-btn">Logout</button>
+        </div>
+        {renderError(error)}
+        <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+          <button onClick={() => fetchData()} className="retry-btn" style={{
+            background: '#3b82f6',
+            color: 'white',
+            border: 'none',
+            padding: '0.5rem 1rem',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            marginRight: '1rem'
+          }}>
+            Retry
+          </button>
+          <button onClick={onLogout} className="logout-btn" style={{
+            background: '#6b7280',
+            color: 'white',
+            border: 'none',
+            padding: '0.5rem 1rem',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}>
+            Back to API Setup
+          </button>
+        </div>
+      </div>
     );
   }
 
   const { totalValue, totalPnL, spotValue, futuresValue } = calculatePnL(accountData);
+
+  // Debug logging for orders
+  console.log('🎯 Dashboard orders data:', {
+    spotOpenOrders: openOrders.length,
+    futuresOpenOrders: futuresOpenOrders.length,
+    totalOpenOrders: openOrders.length + futuresOpenOrders.length,
+    spotOrders: orders.length,
+    futuresOrderHistory: futuresOrderHistory.length,
+    totalOrders: orders.length + futuresOrderHistory.length
+  });
 
   return (
     <div className={`dashboard ${darkMode ? 'dark-mode' : ''}`}>
@@ -133,11 +237,12 @@ const Dashboard = ({ binanceApi, onLogout }) => {
           spotValue={spotValue}
           futuresValue={futuresValue}
           totalPnL={totalPnL}
-          openOrdersCount={openOrders.length}
+          openOrdersCount={openOrders.length + futuresOpenOrders.length}
           totalOrdersCount={orders.length + futuresOrderHistory.length}
           formatCurrency={formatCurrency}
           calculatePnL={() => calculatePnL(accountData)}
           onToggleSection={toggleSection}
+          accountData={accountData}
         />
 
         {expandedSection === 'portfolio' && (
