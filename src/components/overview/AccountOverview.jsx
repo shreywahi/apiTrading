@@ -1,5 +1,5 @@
 import React from 'react';
-import { DollarSign, TrendingUp, Activity } from 'lucide-react';
+import { DollarSign, TrendingUp, Activity, BarChart3 } from 'lucide-react';
 import './AccountOverview.css';
 
 const AccountOverview = ({ 
@@ -27,7 +27,6 @@ const AccountOverview = ({
   
   return (
     <section className="overview-section">
-      <h2>Account Overview</h2>
       <div className="overview-grid">
         <div className="overview-card clickable" onClick={() => onToggleSection('portfolio')}>
           <div className="card-icon">
@@ -57,7 +56,11 @@ const AccountOverview = ({
                 if (isNaN(pnlPercentage) || !isFinite(pnlPercentage)) {
                   return '0.00% return';
                 }
-                return `${pnlPercentage >= 0 ? '+' : ''}${pnlPercentage.toFixed(2)}% return`;
+                return (
+                  <span className={pnlPercentage >= 0 ? 'positive' : 'negative'}>
+                    {pnlPercentage >= 0 ? '+' : ''}{pnlPercentage.toFixed(2)}% return
+                  </span>
+                );
               })()}
               {!hasFuturesData && (
                 <span style={{ display: 'block', fontSize: '0.6rem', color: '#fbbf24', marginTop: '2px' }}>
@@ -76,6 +79,17 @@ const AccountOverview = ({
             <h3>Orders Management</h3>
             <p className="value orders-count">{openOrdersCount} open • {totalOrdersCount} total orders</p>
             <small className="sub-value">Active & Recent Orders</small>
+          </div>
+        </div>
+
+        <div className="overview-card clickable" onClick={() => onToggleSection('trading')}>
+          <div className="card-icon">
+            <BarChart3 size={24} />
+          </div>
+          <div className="card-content">
+            <h3>Trading Center</h3>
+            <p className="value trading-label">Spot & Futures</p>
+            <small className="sub-value">Place buy/sell orders</small>
           </div>
         </div>
       </div>

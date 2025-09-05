@@ -1,5 +1,5 @@
-import React from 'react';
-import { Activity, History, TrendingUp, ArrowUpDown, Coins } from 'lucide-react';
+import React, { useState } from 'react';
+import { Activity, History, TrendingUp, ArrowUpDown, Coins, X } from 'lucide-react';
 import OrderStatusBadge from '../common/OrderStatusBadge';
 import './OrdersSection.css';
 
@@ -14,13 +14,107 @@ const OrdersSection = ({
   handleSort,
   sortData,
   SortIndicator,
-  formatDate
+  formatDate,
+  binanceApi,
+  onOrderCancelled
 }) => {
+  const [closingOrders, setClosingOrders] = useState({});
+  const [showRateLimitMessage, setShowRateLimitMessage] = useState(false);
+  const [optimisticallyRemovedOrders, setOptimisticallyRemovedOrders] = useState(new Set());
+
+  const handleCloseOrder = async (order) => {
+    const orderId = order.orderId || order.id;
+    const symbol = order.symbol;
+    const market = order.isFutures ? 'futures' : 'spot';
+    
+    if (!orderId || !symbol) {
+      console.error('Missing order details for cancellation:', order);
+      return;
+    }
+
+    // Rate limiting protection - prevent rapid successive cancellations
+    const now = Date.now();
+    const timeSinceLastCancel = now - (window.lastCancelTime || 0);
+    
+    if (timeSinceLastCancel < 3000) { // 3 second minimum between cancellations
+      console.warn('⏱️ Rate limit protection: Please wait 3 seconds between order cancellations');
+      setShowRateLimitMessage(true);
+      setTimeout(() => setShowRateLimitMessage(false), 3000);
+      return;
+    }
+    
+    window.lastCancelTime = now;
+    setClosingOrders(prev => ({ ...prev, [orderId]: true }));
+
+    try {
+      console.log(`🎯 Cancelling ${market} order:`, { orderId, symbol });
+      
+      // Cancel the order
+      const result = await binanceApi.cancelOrder(symbol, orderId, market);
+      console.log('✅ Order cancelled successfully:', result);
+
+      // Immediately remove from UI optimistically for instant feedback
+      console.log('🎯 Applying optimistic UI update - removing cancelled order from display');
+      setOptimisticallyRemovedOrders(prev => new Set([...prev, orderId]));
+      
+      // Clear all caches to ensure fresh data
+      if (binanceApi.clearPriceCache) {
+        binanceApi.clearPriceCache();
+      }
+
+      // Trigger immediate data refresh in parent component
+      if (onOrderCancelled) {
+        console.log('🔄 Triggering immediate data refresh...');
+        await onOrderCancelled(orderId);
+        console.log('✅ Immediate refresh successful');
+      }
+
+    } catch (error) {
+      console.error('❌ Failed to cancel order:', error);
+      
+      // Remove optimistic update on failure
+      setOptimisticallyRemovedOrders(prev => {
+        const updated = new Set(prev);
+        updated.delete(orderId);
+        return updated;
+      });
+      
+      // Provide specific feedback for common API issues
+      if (error.message.includes('CORS')) {
+        console.log('ℹ️ CORS error detected - this is a browser/network security limitation');
+      } else if (error.message.includes('403') || error.message.includes('Forbidden')) {
+        console.log('ℹ️ 403 Forbidden detected - likely API rate limiting. Please wait before trying again');
+      } else if (error.message.includes('400')) {
+        console.log('ℹ️ 400 Bad Request - order may already be cancelled or invalid');
+      }
+      
+    } finally {
+      // Remove from closing state after a delay
+      setTimeout(() => {
+        setClosingOrders(prev => {
+          const updated = { ...prev };
+          delete updated[orderId];
+          return updated;
+        });
+      }, 3000);
+    }
+  };
+
+  // Filter out optimistically removed orders from the display
+  const filteredFuturesOpenOrders = (futuresOpenOrders || []).filter(order => 
+    !optimisticallyRemovedOrders.has(order?.orderId || order?.id)
+  );
+
   return (
     <section className="expanded-section orders-section">
       <div className="section-header">
         <h2>Orders Management - USD-M Futures</h2>
         <p className="section-description">Complete trading history from Binance USD-M Futures</p>
+        {showRateLimitMessage && (
+          <div className="rate-limit-message">
+            Rate limit protection active. Please wait 3 seconds between order cancellations to prevent API errors.
+          </div>
+        )}
       </div>
       <div className="section-content">
         <div className="futures-tabs">
@@ -32,7 +126,7 @@ const OrdersSection = ({
               >
                 <Activity size={16} />
                 <span style={{ marginLeft: '0.5rem' }}>
-                  Open Orders ({futuresOpenOrders.length})
+                  Open Orders ({filteredFuturesOpenOrders.length})
                 </span>
               </button>
               <button 
@@ -45,8 +139,8 @@ const OrdersSection = ({
                 </span>
               </button>
               <button 
-                className={`futures-tab-btn ${activeFuturesTab === 'trade-history' ? 'active' : ''}`}
-                onClick={() => setActiveFuturesTab('trade-history')}
+                className={`futures-tab-btn ${activeFuturesTab === 'trades' ? 'active' : ''}`}
+                onClick={() => setActiveFuturesTab('trades')}
               >
                 <TrendingUp size={16} />
                 <span style={{ marginLeft: '0.5rem' }}>
@@ -54,37 +148,67 @@ const OrdersSection = ({
                 </span>
               </button>
               <button 
-                className={`futures-tab-btn ${activeFuturesTab === 'transaction-history' ? 'active' : ''}`}
-                onClick={() => setActiveFuturesTab('transaction-history')}
+                className={`futures-tab-btn ${activeFuturesTab === 'transactions' ? 'active' : ''}`}
+                onClick={() => setActiveFuturesTab('transactions')}
               >
                 <ArrowUpDown size={16} />
                 <span style={{ marginLeft: '0.5rem' }}>
-                  Transaction History ({transactionHistory.length})
+                  Transactions ({transactionHistory.length})
                 </span>
               </button>
               <button 
-                className={`futures-tab-btn ${activeFuturesTab === 'funding-fee' ? 'active' : ''}`}
-                onClick={() => setActiveFuturesTab('funding-fee')}
+                className={`futures-tab-btn ${activeFuturesTab === 'funding' ? 'active' : ''}`}
+                onClick={() => setActiveFuturesTab('funding')}
               >
                 <Coins size={16} />
                 <span style={{ marginLeft: '0.5rem' }}>
-                  Funding Fee ({fundingFeeHistory.length})
+                  Funding ({fundingFeeHistory.length})
                 </span>
               </button>
             </div>
           </div>
-
           <div className="futures-tab-content">
             {activeFuturesTab === 'open-orders' && (
-              <OpenOrdersTab 
-                futuresOpenOrders={futuresOpenOrders}
-                handleSort={handleSort}
-                sortData={sortData}
-                SortIndicator={SortIndicator}
-                formatDate={formatDate}
-              />
+              <React.Fragment>
+                {(() => {
+                  try {
+                    return (
+                      <OpenOrdersTab 
+                        futuresOpenOrders={filteredFuturesOpenOrders}
+                        handleSort={handleSort}
+                        sortData={sortData}
+                        SortIndicator={SortIndicator}
+                        formatDate={formatDate}
+                        binanceApi={binanceApi}
+                        onOrderCancelled={onOrderCancelled}
+                        handleCloseOrder={handleCloseOrder}
+                        closingOrders={closingOrders}
+                      />
+                    );
+                  } catch (error) {
+                    console.error('Error rendering OpenOrdersTab:', error);
+                    return (
+                      <div className="error-message" style={{ 
+                        background: '#fee2e2', 
+                        border: '1px solid #fecaca', 
+                        padding: '1rem', 
+                        borderRadius: '8px',
+                        margin: '1rem 0' 
+                      }}>
+                        <h3 style={{ color: '#dc2626', marginTop: 0 }}>Error Loading Open Orders</h3>
+                        <p>There was an error displaying the open orders. Please try refreshing the page.</p>
+                        <details style={{ marginTop: '0.5rem' }}>
+                          <summary>Error Details</summary>
+                          <pre style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>
+                            {error.toString()}
+                          </pre>
+                        </details>
+                      </div>
+                    );
+                  }
+                })()}
+              </React.Fragment>
             )}
-
             {activeFuturesTab === 'order-history' && (
               <OrderHistoryTab 
                 futuresOrderHistory={futuresOrderHistory}
@@ -94,8 +218,7 @@ const OrdersSection = ({
                 formatDate={formatDate}
               />
             )}
-
-            {activeFuturesTab === 'trade-history' && (
+            {activeFuturesTab === 'trades' && (
               <TradeHistoryTab 
                 tradeHistory={tradeHistory}
                 handleSort={handleSort}
@@ -104,8 +227,7 @@ const OrdersSection = ({
                 formatDate={formatDate}
               />
             )}
-
-            {activeFuturesTab === 'transaction-history' && (
+            {activeFuturesTab === 'transactions' && (
               <TransactionHistoryTab 
                 transactionHistory={transactionHistory}
                 handleSort={handleSort}
@@ -114,9 +236,8 @@ const OrdersSection = ({
                 formatDate={formatDate}
               />
             )}
-
-            {activeFuturesTab === 'funding-fee' && (
-              <FundingFeeTab 
+            {activeFuturesTab === 'funding' && (
+              <FundingHistoryTab 
                 fundingFeeHistory={fundingFeeHistory}
                 handleSort={handleSort}
                 sortData={sortData}
@@ -131,343 +252,456 @@ const OrdersSection = ({
   );
 };
 
-const OpenOrdersTab = ({ futuresOpenOrders, handleSort, sortData, SortIndicator, formatDate }) => {
+const OpenOrdersTab = ({ futuresOpenOrders, handleSort, sortData, SortIndicator, formatDate, binanceApi, onOrderCancelled, handleCloseOrder, closingOrders }) => {
+  // Safety check for props
+  if (!futuresOpenOrders || !Array.isArray(futuresOpenOrders)) {
+    return (
+      <div className="no-data">
+        <p>Loading open orders...</p>
+      </div>
+    );
+  }
+
+  // Safety check for sortData function
+  let sortedOrders;
+  try {
+    sortedOrders = sortData ? sortData(futuresOpenOrders, 'open-orders') : futuresOpenOrders;
+  } catch (error) {
+    console.error('Error sorting orders:', error);
+    sortedOrders = futuresOpenOrders;
+  }
+
+  if (futuresOpenOrders.length === 0) {
+    return (
+      <div className="no-data">
+        <p>No open futures orders found</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="futures-table-container">
-      <h3>Active Open Orders ({futuresOpenOrders.length} orders)</h3>
-      <p className="futures-description">
-        Currently active orders in USD-M Futures (click column headers to sort)
-      </p>
-      {futuresOpenOrders.length > 0 ? (
-        <table className="futures-table">
-          <thead>
-            <tr>
-              <th className="sortable" onClick={() => handleSort('open-orders', 'symbol')}>
-                Symbol
-                <SortIndicator tableType="open-orders" column="symbol" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('open-orders', 'side')}>
-                Side
-                <SortIndicator tableType="open-orders" column="side" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('open-orders', 'type')}>
-                Type
-                <SortIndicator tableType="open-orders" column="type" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('open-orders', 'origQty')}>
-                Quantity
-                <SortIndicator tableType="open-orders" column="origQty" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('open-orders', 'price')}>
-                Price
-                <SortIndicator tableType="open-orders" column="price" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('open-orders', 'stopPrice')}>
-                Stop Price
-                <SortIndicator tableType="open-orders" column="stopPrice" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('open-orders', 'status')}>
-                Status
-                <SortIndicator tableType="open-orders" column="status" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('open-orders', 'timeInForce')}>
-                Time in Force
-                <SortIndicator tableType="open-orders" column="timeInForce" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('open-orders', 'time')}>
-                Time
-                <SortIndicator tableType="open-orders" column="time" />
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortData(futuresOpenOrders, 'open-orders').map((order) => (
-              <tr key={order.orderId}>
-                <td className="symbol">{order.symbol}</td>
-                <td className={`side side-${order.side.toLowerCase()}`}>{order.side}</td>
-                <td>{order.type}</td>
-                <td>{parseFloat(order.origQty).toFixed(4)}</td>
-                <td>{order.price === '0' ? 'Market' : parseFloat(order.price).toFixed(4)}</td>
-                <td>{order.stopPrice && order.stopPrice !== '0' ? parseFloat(order.stopPrice).toFixed(4) : '-'}</td>
-                <td><OrderStatusBadge status={order.status} /></td>
-                <td>{order.timeInForce}</td>
-                <td>{formatDate(order.time || order.updateTime)}</td>
+    <div className="table-container">
+      <table className="futures-table">
+        <thead>
+          <tr>
+            <th onClick={() => handleSort && handleSort('open-orders', 'time')}>
+              Time <SortIndicator tableType="open-orders" column="time" />
+            </th>
+            <th onClick={() => handleSort && handleSort('open-orders', 'symbol')}>
+              Symbol <SortIndicator tableType="open-orders" column="symbol" />
+            </th>
+            <th onClick={() => handleSort && handleSort('open-orders', 'type')}>
+              Type <SortIndicator tableType="open-orders" column="type" />
+            </th>
+            <th onClick={() => handleSort && handleSort('open-orders', 'side')}>
+              Side <SortIndicator tableType="open-orders" column="side" />
+            </th>
+            <th onClick={() => handleSort && handleSort('open-orders', 'origQty')}>
+              Amount <SortIndicator tableType="open-orders" column="origQty" />
+            </th>
+            <th onClick={() => handleSort && handleSort('open-orders', 'price')}>
+              Price <SortIndicator tableType="open-orders" column="price" />
+            </th>
+            <th onClick={() => handleSort && handleSort('open-orders', 'stopPrice')}>
+              Stop Price <SortIndicator tableType="open-orders" column="stopPrice" />
+            </th>
+            <th onClick={() => handleSort && handleSort('open-orders', 'status')}>
+              Status <SortIndicator tableType="open-orders" column="status" />
+            </th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedOrders.map((order, index) => {
+            // Safety check for order object
+            if (!order) return null;
+            
+            const orderId = order.orderId || order.id || index;
+            
+            return (
+              <tr key={orderId}>
+                <td>{formatDate(order.time)}</td>
+                <td className="symbol-cell">{order.symbol || 'N/A'}</td>
+                <td>
+                  <span className={`order-type ${order.type?.toLowerCase() || ''}`}>
+                    {order.type || 'N/A'}
+                  </span>
+                </td>
+                <td>
+                  <span className={`side-badge ${order.side?.toLowerCase() || ''}`}>
+                    {order.side || 'N/A'}
+                  </span>
+                </td>
+                <td className="number-cell">
+                  {order.origQty ? parseFloat(order.origQty).toFixed(6) : '0.000000'}
+                </td>
+                <td className="number-cell">
+                  {order.price && parseFloat(order.price) > 0 ? 
+                    `$${parseFloat(order.price).toLocaleString()}` : 
+                    'Market'
+                  }
+                </td>
+                <td className="number-cell">
+                  {order.stopPrice && parseFloat(order.stopPrice) > 0 ? 
+                    `$${parseFloat(order.stopPrice).toLocaleString()}` : 
+                    '-'
+                  }
+                </td>
+                <td>
+                  <OrderStatusBadge status={order.status} />
+                </td>
+                <td>
+                  <button
+                    className={`close-order-btn ${closingOrders[orderId] ? 'cancelling' : ''}`}
+                    onClick={() => handleCloseOrder(order)}
+                    disabled={closingOrders[orderId]}
+                    title="Cancel this order"
+                  >
+                    <X size={14} />
+                    {closingOrders[orderId] ? 'Cancelling...' : 'Cancel'}
+                  </button>
+                </td>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : (
-        <div className="no-orders">
-          <p>No open futures orders found</p>
-        </div>
-      )}
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 };
 
 const OrderHistoryTab = ({ futuresOrderHistory, handleSort, sortData, SortIndicator, formatDate }) => {
+  // Safety checks
+  if (!futuresOrderHistory || !Array.isArray(futuresOrderHistory)) {
+    return (
+      <div className="no-data">
+        <p>Loading order history...</p>
+      </div>
+    );
+  }
+
+  let sortedOrders;
+  try {
+    sortedOrders = sortData ? sortData(futuresOrderHistory, 'order-history') : futuresOrderHistory;
+  } catch (error) {
+    console.error('Error sorting order history:', error);
+    sortedOrders = futuresOrderHistory;
+  }
+
+  if (futuresOrderHistory.length === 0) {
+    return (
+      <div className="no-data">
+        <p>No order history found</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="futures-table-container">
-      <h3>Order History ({futuresOrderHistory.length} orders)</h3>
-      <p className="futures-description">
-        Complete order history from USD-M Futures (click column headers to sort)
-      </p>
-      {futuresOrderHistory.length > 0 ? (
-        <table className="futures-table">
-          <thead>
-            <tr>
-              <th className="sortable" onClick={() => handleSort('order-history', 'symbol')}>
-                Symbol
-                <SortIndicator tableType="order-history" column="symbol" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('order-history', 'side')}>
-                Side
-                <SortIndicator tableType="order-history" column="side" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('order-history', 'type')}>
-                Type
-                <SortIndicator tableType="order-history" column="type" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('order-history', 'origQty')}>
-                Quantity
-                <SortIndicator tableType="order-history" column="origQty" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('order-history', 'price')}>
-                Price
-                <SortIndicator tableType="order-history" column="price" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('order-history', 'executedQty')}>
-                Executed
-                <SortIndicator tableType="order-history" column="executedQty" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('order-history', 'status')}>
-                Status
-                <SortIndicator tableType="order-history" column="status" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('order-history', 'reduceOnly')}>
-                Reduce Only
-                <SortIndicator tableType="order-history" column="reduceOnly" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('order-history', 'time')}>
-                Time
-                <SortIndicator tableType="order-history" column="time" />
-              </th>
+    <div className="table-container">
+      <table className="futures-table">
+        <thead>
+          <tr>
+            <th onClick={() => handleSort && handleSort('order-history', 'time')}>
+              Time <SortIndicator tableType="order-history" column="time" />
+            </th>
+            <th onClick={() => handleSort && handleSort('order-history', 'symbol')}>
+              Symbol <SortIndicator tableType="order-history" column="symbol" />
+            </th>
+            <th onClick={() => handleSort && handleSort('order-history', 'type')}>
+              Type <SortIndicator tableType="order-history" column="type" />
+            </th>
+            <th onClick={() => handleSort && handleSort('order-history', 'side')}>
+              Side <SortIndicator tableType="order-history" column="side" />
+            </th>
+            <th onClick={() => handleSort && handleSort('order-history', 'origQty')}>
+              Amount <SortIndicator tableType="order-history" column="origQty" />
+            </th>
+            <th onClick={() => handleSort && handleSort('order-history', 'price')}>
+              Price <SortIndicator tableType="order-history" column="price" />
+            </th>
+            <th onClick={() => handleSort && handleSort('order-history', 'status')}>
+              Status <SortIndicator tableType="order-history" column="status" />
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedOrders.map((order, index) => (
+            <tr key={order.orderId || index}>
+              <td>{formatDate(order.time)}</td>
+              <td className="symbol-cell">{order.symbol}</td>
+              <td>
+                <span className={`order-type ${order.type?.toLowerCase()}`}>
+                  {order.type}
+                </span>
+              </td>
+              <td>
+                <span className={`side-badge ${order.side?.toLowerCase()}`}>
+                  {order.side}
+                </span>
+              </td>
+              <td className="number-cell">{parseFloat(order.origQty).toFixed(6)}</td>
+              <td className="number-cell">
+                {order.price && parseFloat(order.price) > 0 ? 
+                  `$${parseFloat(order.price).toLocaleString()}` : 
+                  'Market'
+                }
+              </td>
+              <td>
+                <OrderStatusBadge status={order.status} />
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {sortData(futuresOrderHistory, 'order-history').map((order) => (
-              <tr key={order.orderId}>
-                <td className="symbol">{order.symbol}</td>
-                <td className={`side side-${order.side.toLowerCase()}`}>{order.side}</td>
-                <td>{order.type}</td>
-                <td>{parseFloat(order.origQty).toFixed(4)}</td>
-                <td>{order.price === '0' ? 'Market' : parseFloat(order.price).toFixed(4)}</td>
-                <td>{parseFloat(order.executedQty || 0).toFixed(4)}</td>
-                <td><OrderStatusBadge status={order.status} /></td>
-                <td>{order.reduceOnly ? 'Yes' : 'No'}</td>
-                <td>{formatDate(order.time || order.updateTime)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : (
-        <div className="no-orders">
-          <p>No futures order history found</p>
-        </div>
-      )}
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };
 
 const TradeHistoryTab = ({ tradeHistory, handleSort, sortData, SortIndicator, formatDate }) => {
+  // Safety checks
+  if (!tradeHistory || !Array.isArray(tradeHistory)) {
+    return (
+      <div className="no-data">
+        <p>Loading trade history...</p>
+      </div>
+    );
+  }
+
+  let sortedTrades;
+  try {
+    sortedTrades = sortData ? sortData(tradeHistory, 'trade-history') : tradeHistory;
+  } catch (error) {
+    console.error('Error sorting trade history:', error);
+    sortedTrades = tradeHistory;
+  }
+
+  if (tradeHistory.length === 0) {
+    return (
+      <div className="no-data">
+        <p>No trade history found</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="futures-table-container">
-      <h3>Trade History ({tradeHistory.length} trades)</h3>
-      <p className="futures-description">
-        Recent executed trades from USD-M Futures (click column headers to sort)
-      </p>
-      {tradeHistory.length > 0 ? (
-        <table className="futures-table">
-          <thead>
-            <tr>
-              <th className="sortable" onClick={() => handleSort('trade-history', 'symbol')}>
-                Symbol
-                <SortIndicator tableType="trade-history" column="symbol" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('trade-history', 'side')}>
-                Side
-                <SortIndicator tableType="trade-history" column="side" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('trade-history', 'qty')}>
-                Quantity
-                <SortIndicator tableType="trade-history" column="qty" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('trade-history', 'price')}>
-                Price
-                <SortIndicator tableType="trade-history" column="price" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('trade-history', 'quoteQty')}>
-                Quote Qty
-                <SortIndicator tableType="trade-history" column="quoteQty" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('trade-history', 'commission')}>
-                Commission
-                <SortIndicator tableType="trade-history" column="commission" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('trade-history', 'commissionAsset')}>
-                Commission Asset
-                <SortIndicator tableType="trade-history" column="commissionAsset" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('trade-history', 'realizedPnl')}>
-                Realized PnL
-                <SortIndicator tableType="trade-history" column="realizedPnl" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('trade-history', 'time')}>
-                Time
-                <SortIndicator tableType="trade-history" column="time" />
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortData(tradeHistory, 'trade-history').map((trade) => (
-              <tr key={trade.id}>
-                <td className="symbol">{trade.symbol}</td>
-                <td className={`side side-${trade.side.toLowerCase()}`}>{trade.side}</td>
-                <td>{parseFloat(trade.qty).toFixed(4)}</td>
-                <td>{parseFloat(trade.price).toFixed(4)}</td>
-                <td>{parseFloat(trade.quoteQty).toFixed(4)}</td>
-                <td>{parseFloat(trade.commission).toFixed(6)}</td>
-                <td>{trade.commissionAsset}</td>
-                <td className={parseFloat(trade.realizedPnl) >= 0 ? 'profit' : 'loss'}>
-                  {parseFloat(trade.realizedPnl).toFixed(4)}
+    <div className="table-container">
+      <table className="futures-table">
+        <thead>
+          <tr>
+            <th onClick={() => handleSort && handleSort('trade-history', 'time')}>
+              Time <SortIndicator tableType="trade-history" column="time" />
+            </th>
+            <th onClick={() => handleSort && handleSort('trade-history', 'symbol')}>
+              Symbol <SortIndicator tableType="trade-history" column="symbol" />
+            </th>
+            <th onClick={() => handleSort && handleSort('trade-history', 'side')}>
+              Side <SortIndicator tableType="trade-history" column="side" />
+            </th>
+            <th onClick={() => handleSort && handleSort('trade-history', 'qty')}>
+              Quantity <SortIndicator tableType="trade-history" column="qty" />
+            </th>
+            <th onClick={() => handleSort && handleSort('trade-history', 'price')}>
+              Price <SortIndicator tableType="trade-history" column="price" />
+            </th>
+            <th onClick={() => handleSort && handleSort('trade-history', 'realizedPnl')}>
+              Realized PnL <SortIndicator tableType="trade-history" column="realizedPnl" />
+            </th>
+            <th onClick={() => handleSort && handleSort('trade-history', 'commission')}>
+              Commission <SortIndicator tableType="trade-history" column="commission" />
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedTrades && sortedTrades.length > 0 ? sortedTrades.map((trade, index) => {
+            // Safety check for trade object
+            if (!trade || typeof trade !== 'object') {
+              return null;
+            }
+
+            return (
+              <tr key={trade.id || `trade-${index}`}>
+                <td>{formatDate ? formatDate(trade.time) : 'N/A'}</td>
+                <td className="symbol-cell">{trade.symbol || 'N/A'}</td>
+                <td>
+                  <span className={`side-badge ${trade.side?.toLowerCase() || ''}`}>
+                    {trade.side || 'N/A'}
+                  </span>
                 </td>
-                <td>{formatDate(trade.time)}</td>
+                <td className="number-cell">{parseFloat(trade.qty || 0).toFixed(6)}</td>
+                <td className="number-cell">${parseFloat(trade.price || 0).toLocaleString()}</td>
+                <td className={`number-cell ${parseFloat(trade.realizedPnl || 0) >= 0 ? 'positive' : 'negative'}`}>
+                  ${parseFloat(trade.realizedPnl || 0).toFixed(4)}
+                </td>
+                <td className="number-cell">${parseFloat(trade.commission || 0).toFixed(6)}</td>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : (
-        <div className="no-orders">
-          <p>No trade history found</p>
-        </div>
-      )}
+            );
+          }).filter(Boolean) : (
+            <tr>
+              <td colSpan="7" style={{ textAlign: 'center', color: '#888' }}>
+                No trade history available
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 };
 
 const TransactionHistoryTab = ({ transactionHistory, handleSort, sortData, SortIndicator, formatDate }) => {
+  // Safety checks
+  if (!transactionHistory || !Array.isArray(transactionHistory)) {
+    return (
+      <div className="no-data">
+        <p>Loading transaction history...</p>
+      </div>
+    );
+  }
+
+  let sortedTransactions;
+  try {
+    sortedTransactions = sortData ? sortData(transactionHistory, 'transaction-history') : transactionHistory;
+  } catch (error) {
+    console.error('Error sorting transaction history:', error);
+    sortedTransactions = transactionHistory;
+  }
+
+  if (transactionHistory.length === 0) {
+    return (
+      <div className="no-data">
+        <p>No transaction history found</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="futures-table-container">
-      <h3>Transaction History ({transactionHistory.length} transactions)</h3>
-      <p className="futures-description">
-        Income history including realized PnL, funding fees, commission rebates (click column headers to sort)
-      </p>
-      {transactionHistory.length > 0 ? (
-        <table className="futures-table">
-          <thead>
-            <tr>
-              <th className="sortable" onClick={() => handleSort('transaction-history', 'symbol')}>
-                Symbol
-                <SortIndicator tableType="transaction-history" column="symbol" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('transaction-history', 'incomeType')}>
-                Income Type
-                <SortIndicator tableType="transaction-history" column="incomeType" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('transaction-history', 'income')}>
-                Income
-                <SortIndicator tableType="transaction-history" column="income" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('transaction-history', 'asset')}>
-                Asset
-                <SortIndicator tableType="transaction-history" column="asset" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('transaction-history', 'info')}>
-                Info
-                <SortIndicator tableType="transaction-history" column="info" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('transaction-history', 'time')}>
-                Time
-                <SortIndicator tableType="transaction-history" column="time" />
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortData(transactionHistory, 'transaction-history').map((transaction, index) => (
-              <tr key={`${transaction.tranId || index}`}>
-                <td className="symbol">{transaction.symbol || '-'}</td>
-                <td>{transaction.incomeType}</td>
-                <td className={parseFloat(transaction.income) >= 0 ? 'profit' : 'loss'}>
-                  {parseFloat(transaction.income).toFixed(6)}
+    <div className="table-container">
+      <table className="futures-table">
+        <thead>
+          <tr>
+            <th onClick={() => handleSort && handleSort('transaction-history', 'time')}>
+              Time <SortIndicator tableType="transaction-history" column="time" />
+            </th>
+            <th onClick={() => handleSort && handleSort('transaction-history', 'symbol')}>
+              Symbol <SortIndicator tableType="transaction-history" column="symbol" />
+            </th>
+            <th onClick={() => handleSort && handleSort('transaction-history', 'incomeType')}>
+              Type <SortIndicator tableType="transaction-history" column="incomeType" />
+            </th>
+            <th onClick={() => handleSort && handleSort('transaction-history', 'income')}>
+              Income <SortIndicator tableType="transaction-history" column="income" />
+            </th>
+            <th onClick={() => handleSort && handleSort('transaction-history', 'asset')}>
+              Asset <SortIndicator tableType="transaction-history" column="asset" />
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedTransactions && sortedTransactions.length > 0 ? sortedTransactions.map((transaction, index) => {
+            // Safety check for transaction object
+            if (!transaction || typeof transaction !== 'object') {
+              return null;
+            }
+
+            return (
+              <tr key={transaction.tranId || `transaction-${index}`}>
+                <td>{formatDate ? formatDate(transaction.time) : 'N/A'}</td>
+                <td className="symbol-cell">{transaction.symbol || '-'}</td>
+                <td>
+                  <span className={`income-type ${transaction.incomeType?.toLowerCase() || ''}`}>
+                    {transaction.incomeType || 'N/A'}
+                  </span>
                 </td>
-                <td>{transaction.asset}</td>
-                <td>{transaction.info || '-'}</td>
-                <td>{formatDate(transaction.time)}</td>
+                <td className={`number-cell ${parseFloat(transaction.income || 0) >= 0 ? 'positive' : 'negative'}`}>
+                  {parseFloat(transaction.income || 0).toFixed(6)}
+                </td>
+                <td className="symbol-cell">{transaction.asset || 'N/A'}</td>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : (
-        <div className="no-orders">
-          <p>No transaction history found</p>
-        </div>
-      )}
+            );
+          }).filter(Boolean) : (
+            <tr>
+              <td colSpan="5" style={{ textAlign: 'center', color: '#888' }}>
+                No transaction history available
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 };
 
-const FundingFeeTab = ({ fundingFeeHistory, handleSort, sortData, SortIndicator, formatDate }) => {
+const FundingHistoryTab = ({ fundingFeeHistory, handleSort, sortData, SortIndicator, formatDate }) => {
+  // Safety checks
+  if (!fundingFeeHistory || !Array.isArray(fundingFeeHistory)) {
+    return (
+      <div className="no-data">
+        <p>Loading funding history...</p>
+      </div>
+    );
+  }
+
+  let sortedFunding;
+  try {
+    sortedFunding = sortData ? sortData(fundingFeeHistory, 'funding-fee') : fundingFeeHistory;
+  } catch (error) {
+    console.error('Error sorting funding history:', error);
+    sortedFunding = fundingFeeHistory;
+  }
+
+  if (fundingFeeHistory.length === 0) {
+    return (
+      <div className="no-data">
+        <p>No funding fee history found</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="futures-table-container">
-      <h3>Funding Fee History ({fundingFeeHistory.length} records)</h3>
-      <p className="futures-description">
-        Funding fees paid/received for holding positions (click column headers to sort)
-      </p>
-      {fundingFeeHistory.length > 0 ? (
-        <table className="futures-table">
-          <thead>
-            <tr>
-              <th className="sortable" onClick={() => handleSort('funding-fee', 'symbol')}>
-                Symbol
-                <SortIndicator tableType="funding-fee" column="symbol" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('funding-fee', 'income')}>
-                Funding Fee
-                <SortIndicator tableType="funding-fee" column="income" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('funding-fee', 'asset')}>
-                Asset
-                <SortIndicator tableType="funding-fee" column="asset" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('funding-fee', 'info')}>
-                Info
-                <SortIndicator tableType="funding-fee" column="info" />
-              </th>
-              <th className="sortable" onClick={() => handleSort('funding-fee', 'time')}>
-                Time
-                <SortIndicator tableType="funding-fee" column="time" />
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortData(fundingFeeHistory, 'funding-fee').map((fee, index) => (
-              <tr key={`${fee.tranId || index}`}>
-                <td className="symbol">{fee.symbol}</td>
-                <td className={parseFloat(fee.income) >= 0 ? 'profit' : 'loss'}>
-                  {parseFloat(fee.income).toFixed(6)}
+    <div className="table-container">
+      <table className="futures-table">
+        <thead>
+          <tr>
+            <th onClick={() => handleSort && handleSort('funding-fee', 'time')}>
+              Time <SortIndicator tableType="funding-fee" column="time" />
+            </th>
+            <th onClick={() => handleSort && handleSort('funding-fee', 'symbol')}>
+              Symbol <SortIndicator tableType="funding-fee" column="symbol" />
+            </th>
+            <th onClick={() => handleSort && handleSort('funding-fee', 'income')}>
+              Funding Fee <SortIndicator tableType="funding-fee" column="income" />
+            </th>
+            <th onClick={() => handleSort && handleSort('funding-fee', 'asset')}>
+              Asset <SortIndicator tableType="funding-fee" column="asset" />
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedFunding && sortedFunding.length > 0 ? sortedFunding.map((funding, index) => {
+            // Safety check for funding object
+            if (!funding || typeof funding !== 'object') {
+              return null;
+            }
+
+            return (
+              <tr key={funding.tranId || `funding-${index}`}>
+                <td>{formatDate ? formatDate(funding.time) : 'N/A'}</td>
+                <td className="symbol-cell">{funding.symbol || 'N/A'}</td>
+                <td className={`number-cell ${parseFloat(funding.income || 0) >= 0 ? 'positive' : 'negative'}`}>
+                  {parseFloat(funding.income || 0).toFixed(6)}
                 </td>
-                <td>{fee.asset}</td>
-                <td>{fee.info || '-'}</td>
-                <td>{formatDate(fee.time)}</td>
+                <td className="symbol-cell">{funding.asset || 'N/A'}</td>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : (
-        <div className="no-orders">
-          <p>No funding fee history found</p>
-        </div>
-      )}
+            );
+          }).filter(Boolean) : (
+            <tr>
+              <td colSpan="4" style={{ textAlign: 'center', color: '#888' }}>
+                No funding history available
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 };

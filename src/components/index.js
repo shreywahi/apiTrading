@@ -17,6 +17,9 @@ export { default as PnLSection } from './pnl/PnLSection';
 // Orders Components
 export { default as OrdersSection } from './orders/OrdersSection';
 
+// Trading Components
+export { default as TradingSection } from './trading/TradingSection';
+
 // Common Components
 export { default as LoadingSpinner } from './common/LoadingSpinner';
 export { default as ErrorDisplay } from './common/ErrorDisplay';

@@ -1,21 +1,23 @@
 import React, { useState, useEffect } from 'react';
+
+// Custom hooks
+import { useDashboardData } from '../hooks/useDashboardData';
+import { useOptimizedDashboardData } from '../hooks/useOptimizedDashboardData';
+import { useAutoRefresh } from '../hooks/useAutoRefresh';
+import { useCurrency } from '../hooks/useCurrency';
+import { useSorting } from '../hooks/useSorting';
+
+// Components
 import CosmicBackground from './CosmicBackground';
 import DashboardHeader from './layout/DashboardHeader';
 import AccountOverview from './overview/AccountOverview';
 import PortfolioSection from './portfolio/PortfolioSection';
 import PnLSection from './pnl/PnLSection';
 import OrdersSection from './orders/OrdersSection';
+import TradingSection from './trading/TradingSection';
+import TradingErrorBoundary from './trading/TradingErrorBoundary';
 import LoadingSpinner from './common/LoadingSpinner';
 import ErrorDisplay from './common/ErrorDisplay';
-import PerformanceIndicator from './common/PerformanceIndicator';
-
-// Hooks
-import { useDashboardData } from '../hooks/useDashboardData';
-import { useOptimizedDashboardData } from '../hooks/useOptimizedDashboardData';
-import { useUltraOptimizedDashboardData } from '../hooks/useUltraOptimizedDashboardData';
-import { useSorting } from '../hooks/useSorting';
-import { useAutoRefresh } from '../hooks/useAutoRefresh';
-import { useCurrency } from '../hooks/useCurrency';
 
 // Utils
 import { calculatePnL, formatDate } from '../utils/dashboardUtils';
@@ -32,7 +34,7 @@ const Dashboard = ({ binanceApi, onLogout }) => {
   const [activeFuturesTab, setActiveFuturesTab] = useState('open-orders');
   const [darkMode, setDarkMode] = useState(true);
   const [useOptimizedFetch, setUseOptimizedFetch] = useState(true);
-  const [useUltraOptimization, setUseUltraOptimization] = useState(true);
+  const [useUltraOptimization, setUseUltraOptimization] = useState(false);
 
   // Performance optimization - extend API with optimizations on first load
   useEffect(() => {
@@ -54,10 +56,8 @@ const Dashboard = ({ binanceApi, onLogout }) => {
     }
   }, [binanceApi]);
 
-  // Choose data fetching strategy based on optimization level
-  const dataHook = useUltraOptimization ? 
-    useUltraOptimizedDashboardData : 
-    (useOptimizedFetch ? useOptimizedDashboardData : useDashboardData);
+  // Choose data fetching strategy based on optimization level  
+  const dataHook = useOptimizedFetch ? useOptimizedDashboardData : useDashboardData;
   
   // Custom hooks
   const {
@@ -73,10 +73,9 @@ const Dashboard = ({ binanceApi, onLogout }) => {
     loading,
     error,
     refreshing,
-    refresh: fetchData,
+    fetchData,
     fastRefresh,
-    performanceMetrics,
-    getOptimizationStats
+    refreshOrderData
   } = dataHook(binanceApi);
 
   const { sortConfig, handleSort, sortData, SortIndicator } = useSorting();
@@ -237,7 +236,7 @@ const Dashboard = ({ binanceApi, onLogout }) => {
           spotValue={spotValue}
           futuresValue={futuresValue}
           totalPnL={totalPnL}
-          openOrdersCount={openOrders.length + futuresOpenOrders.length}
+          openOrdersCount={openOrders.length}
           totalOrdersCount={orders.length + futuresOrderHistory.length}
           formatCurrency={formatCurrency}
           calculatePnL={() => calculatePnL(accountData)}
@@ -288,16 +287,58 @@ const Dashboard = ({ binanceApi, onLogout }) => {
             sortData={sortData}
             SortIndicator={SortIndicator}
             formatDate={formatDate}
+            binanceApi={binanceApi}
+            onOrderCancelled={async (orderId) => {
+              console.log('🚫 Order cancelled - refreshing order data immediately');
+              
+              // Clear cache for fresh data on next refresh
+              if (binanceApi.clearPriceCache) {
+                binanceApi.clearPriceCache();
+              }
+              
+              // Use order-focused refresh for immediate and comprehensive update
+              try {
+                console.log('📡 Refreshing order data after cancellation...');
+                await refreshOrderData();
+                console.log('✅ Order data refresh successful');
+              } catch (refreshError) {
+                console.warn('⚠️ Order data refresh failed, falling back to full refresh:', refreshError.message);
+                // Fallback to full refresh if order refresh fails
+                try {
+                  await fetchData();
+                  console.log('✅ Full refresh fallback successful');
+                } catch (fullRefreshError) {
+                  console.error('❌ Both order refresh and full refresh failed:', fullRefreshError.message);
+                }
+              }
+            }}
           />
         )}
+
+        {expandedSection === 'trading' && (
+          <TradingErrorBoundary>
+            <TradingSection 
+              accountData={accountData}
+              formatCurrency={formatCurrency}
+              binanceApi={binanceApi}
+              onOrderPlaced={() => {
+                console.log('🎯 Order placed - refreshing order data comprehensively');
+                // Clear cache to ensure fresh data and trigger order refresh
+                if (binanceApi.clearPriceCache) {
+                  binanceApi.clearPriceCache();
+                }
+                // Immediate order data refresh to update UI quickly
+                refreshOrderData();
+                // Secondary refresh after delay to ensure Binance has processed the order
+                setTimeout(() => {
+                  console.log('🔄 Secondary order refresh to ensure order visibility');
+                  refreshOrderData();
+                }, 2000); // 2 second delay for more reliable updates
+              }}
+            />
+          </TradingErrorBoundary>
+        )}
       </div>
-      
-      {/* Performance monitoring indicator */}
-      <PerformanceIndicator 
-        loading={loading}
-        refreshing={refreshing}
-        accountData={accountData}
-      />
     </div>
   );
 };

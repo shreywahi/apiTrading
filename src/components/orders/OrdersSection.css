@@ -1,5 +1,71 @@
 /* Orders Section inherits styles from expanded-section */
 
+/* Rate limit and informational messages */
+.rate-limit-message {
+  background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+  color: #856404;
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: 1px solid #ffeeba;
+  margin: 10px 0;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  animation: slideIn 0.3s ease-out;
+}
+
+.rate-limit-message::before {
+  content: '⏱️';
+  font-size: 16px;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Success message for order operations */
+.order-success-message {
+  background: linear-gradient(135deg, #d4edda, #c3e6cb);
+  color: #155724;
+  border: 1px solid #c3e6cb;
+  padding: 10px 15px;
+  border-radius: 8px;
+  margin: 10px 0;
+  font-size: 14px;
+  animation: slideIn 0.3s ease-out;
+}
+
+.order-success-message::before {
+  content: '✅';
+  margin-right: 8px;
+}
+
+/* Optimistic update message */
+.optimistic-update-message {
+  background: linear-gradient(135deg, #e2f3ff, #b3d9ff);
+  color: #0c5460;
+  border: 1px solid #bee5eb;
+  padding: 10px 15px;
+  border-radius: 8px;
+  margin: 10px 0;
+  font-size: 14px;
+  animation: slideIn 0.3s ease-out;
+}
+
+.optimistic-update-message::before {
+  content: '🎯';
+  margin-right: 8px;
+}
+
 .futures-tabs {
   background: rgba(255, 255, 255, 0.05);
   border-radius: 12px;
@@ -298,4 +364,68 @@
 
 .dark-mode .futures-tab-btn:hover:not(.active) {
   color: #e2e8f0;
+}
+
+/* Close Order Button Styles */
+.close-order-btn {
+  background: linear-gradient(135deg, #dc3545, #c82333);
+  color: white;
+  border: none;
+  padding: 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+}
+
+.close-order-btn:hover {
+  background: linear-gradient(135deg, #c82333, #a71e2a);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(220, 53, 69, 0.4);
+}
+
+.close-order-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+}
+
+.close-order-btn:disabled,
+.close-order-btn.cancelling {
+  background: #6c757d;
+  cursor: not-allowed;
+  transform: none;
+  opacity: 0.6;
+}
+
+.close-order-btn:disabled:hover,
+.close-order-btn.cancelling:hover {
+  transform: none;
+  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+}
+
+/* P&L Coloring for consistent theme */
+.positive {
+  color: #38a169 !important;
+}
+
+.negative {
+  color: #e53e3e !important;
+}
+
+.number-cell.positive {
+  color: #38a169;
+  font-weight: 600;
+}
+
+.number-cell.negative {
+  color: #e53e3e;
+  font-weight: 600;
 }

@@ -181,6 +181,56 @@ export const useOptimizedDashboardData = (binanceApi) => {
   };
 
   /**
+   * Order-focused refresh - update order-related data after order changes
+   */
+  const refreshOrderData = async () => {
+    try {
+      setRefreshing(true);
+      
+      console.log('🔄 Refreshing order data after order changes...');
+      
+      // Fetch all order-related data that would be affected by order changes
+      const [openOrdersResult, futuresDataResult] = await Promise.allSettled([
+        binanceApi.getOpenOrders(),
+        binanceApi.getFuturesOrdersData()
+      ]);
+
+      // Update spot open orders
+      if (openOrdersResult.status === 'fulfilled') {
+        setOpenOrders(openOrdersResult.value);
+        console.log('✅ Updated spot open orders:', openOrdersResult.value.length);
+      }
+
+      // Update all futures order data
+      if (futuresDataResult.status === 'fulfilled') {
+        const futuresData = futuresDataResult.value;
+        setFuturesOpenOrders(futuresData.openOrders || []);
+        setFuturesOrderHistory(futuresData.orderHistory || []);
+        setTradeHistory(futuresData.tradeHistory || []);
+        setTransactionHistory(futuresData.transactionHistory || []);
+        setFundingFeeHistory(futuresData.fundingFees || []);
+        
+        console.log('✅ Updated futures data:', {
+          openOrders: futuresData.openOrders?.length || 0,
+          orderHistory: futuresData.orderHistory?.length || 0,
+          tradeHistory: futuresData.tradeHistory?.length || 0,
+          transactionHistory: futuresData.transactionHistory?.length || 0,
+          fundingFees: futuresData.fundingFees?.length || 0
+        });
+      }
+
+      // Also refresh account data to update balances after orders
+      await fastRefresh();
+
+    } catch (error) {
+      console.error('Order data refresh failed:', error.message);
+      setError(error.message);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  /**
    * Full refresh - comprehensive data fetch (used on initial load and periodic full updates)
    */
   const fullRefresh = async () => {
@@ -333,6 +383,7 @@ export const useOptimizedDashboardData = (binanceApi) => {
     // Actions
     fetchData,
     fastRefresh,
+    refreshOrderData,
     fullRefresh
   };
 };

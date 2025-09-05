@@ -73,7 +73,7 @@ class BinanceAPI {
 
     try {
       // Test futures trading permissions
-      await this.makeFuturesRequest('/fapi/v2/account');
+      await this.makeFuturesRequest('/fapi/v2/account', 'GET');
       permissions.futures = true;
       console.log('✅ Futures trading permissions: OK');
     } catch (error) {
@@ -378,7 +378,7 @@ class BinanceAPI {
   }
 
   // Helper method for futures API requests
-  async makeFuturesRequest(endpoint, params = {}) {
+  async makeFuturesRequest(endpoint, method = 'GET', params = {}) {
     // Return mock data if in demo mode
     if (this.useMockData) {
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -398,7 +398,8 @@ class BinanceAPI {
     const timestamp = this.getTimestamp();
     const queryParams = new URLSearchParams({
       ...params,
-      timestamp: timestamp
+      timestamp: timestamp,
+      recvWindow: 60000
     });
 
     const signature = this.generateSignature(queryParams.toString());
@@ -418,15 +419,31 @@ class BinanceAPI {
           finalEndpoint = endpoint.substring(5); // Remove '/fapi' prefix
         }
         
-        const url = `${baseUrl}${finalEndpoint}?${queryParams.toString()}`;
-        console.log('Trying futures API request to:', url);
+        const url = `${baseUrl}${finalEndpoint}`;
+        console.log(`Trying futures ${method} request to:`, url);
         
-        const response = await axios.get(url, { 
+        let response;
+        const axiosConfig = { 
           headers: this.getHeaders(),
           timeout: 15000 
-        });
+        };
+
+        if (method === 'POST') {
+          response = await axios.post(url, queryParams.toString(), {
+            ...axiosConfig,
+            headers: {
+              ...axiosConfig.headers,
+              'Content-Type': 'application/x-www-form-urlencoded'
+            }
+          });
+        } else if (method === 'DELETE') {
+          response = await axios.delete(`${url}?${queryParams.toString()}`, axiosConfig);
+        } else {
+          // GET method (default)
+          response = await axios.get(`${url}?${queryParams.toString()}`, axiosConfig);
+        }
         
-        console.log('✅ Futures success with:', baseUrl);
+        console.log(`✅ Futures ${method} success with:`, baseUrl);
         return response.data;
       } catch (error) {
         console.warn(`❌ Futures failed with ${baseUrl}:`, error.message);
@@ -449,6 +466,131 @@ class BinanceAPI {
       console.error('  1. API key missing futures trading permissions');
       console.error('  2. IP whitelist restrictions');
       console.error('  3. Proxy configuration issues');
+    }
+
+    throw this.handleApiError(lastError);
+  }
+
+  // Helper method for POST requests (orders, etc.)
+  async makePostRequest(endpoint, params = {}, isFutures = false) {
+    // Return mock data if in demo mode
+    if (this.useMockData) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return { orderId: Math.floor(Math.random() * 1000000), status: 'NEW' };
+    }
+
+    // Validate API credentials
+    if (!this.apiKey || !this.apiSecret) {
+      throw new Error('API key and secret are required');
+    }
+
+    // Sync server time if needed
+    if (this.timeOffset === undefined) {
+      await this.syncServerTime();
+    }
+
+    const timestamp = this.getTimestamp();
+    const queryParams = new URLSearchParams({
+      ...params,
+      timestamp: timestamp,
+      recvWindow: 60000
+    });
+
+    const signature = this.generateSignature(queryParams.toString());
+    queryParams.append('signature', signature);
+
+    // Choose endpoints based on spot/futures
+    const endpointsToTry = isFutures ? 
+      [API_ENDPOINTS.FUTURES_PROXY, API_ENDPOINTS.FUTURES_DIRECT] :
+      [API_ENDPOINTS.LOCAL_PROXY, API_ENDPOINTS.DIRECT];
+
+    let lastError = null;
+
+    for (const baseUrl of endpointsToTry) {
+      try {
+        // For proxy endpoints, adjust the endpoint path
+        let finalEndpoint = endpoint;
+        if (isFutures && baseUrl === API_ENDPOINTS.FUTURES_PROXY && endpoint.startsWith('/fapi/')) {
+          finalEndpoint = endpoint.substring(5); // Remove '/fapi' prefix
+        }
+
+        const url = `${baseUrl}${finalEndpoint}`;
+        
+        const response = await axios.post(url, queryParams.toString(), { 
+          headers: {
+            ...this.getHeaders(),
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          timeout: 15000 
+        });
+        
+        return response.data;
+      } catch (error) {
+        console.warn(`❌ POST ${isFutures ? 'Futures' : 'Spot'} failed with ${baseUrl}:`, error.message);
+        lastError = error;
+        continue;
+      }
+    }
+
+    throw this.handleApiError(lastError);
+  }
+
+  // Helper method for DELETE requests (cancel orders, etc.)
+  async makeDeleteRequest(endpoint, params = {}, isFutures = false) {
+    // Return mock data if in demo mode
+    if (this.useMockData) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return { orderId: params.orderId, status: 'CANCELED' };
+    }
+
+    // Validate API credentials
+    if (!this.apiKey || !this.apiSecret) {
+      throw new Error('API key and secret are required');
+    }
+
+    // Sync server time if needed
+    if (this.timeOffset === undefined) {
+      await this.syncServerTime();
+    }
+
+    const timestamp = this.getTimestamp();
+    const queryParams = new URLSearchParams({
+      ...params,
+      timestamp: timestamp,
+      recvWindow: 60000
+    });
+
+    const signature = this.generateSignature(queryParams.toString());
+    queryParams.append('signature', signature);
+
+    // Choose endpoints based on spot/futures
+    const endpointsToTry = isFutures ? 
+      [API_ENDPOINTS.FUTURES_PROXY, API_ENDPOINTS.FUTURES_DIRECT] :
+      [API_ENDPOINTS.LOCAL_PROXY, API_ENDPOINTS.DIRECT];
+
+    let lastError = null;
+
+    for (const baseUrl of endpointsToTry) {
+      try {
+        // For proxy endpoints, adjust the endpoint path
+        let finalEndpoint = endpoint;
+        if (isFutures && baseUrl === API_ENDPOINTS.FUTURES_PROXY && endpoint.startsWith('/fapi/')) {
+          finalEndpoint = endpoint.substring(5); // Remove '/fapi' prefix
+        }
+
+        const url = `${baseUrl}${finalEndpoint}?${queryParams.toString()}`;
+        
+        const response = await axios.delete(url, { 
+          headers: this.getHeaders(),
+          timeout: 15000 
+        });
+        
+        return response.data;
+      } catch (error) {
+        console.warn(`❌ DELETE ${isFutures ? 'Futures' : 'Spot'} failed with ${baseUrl}:`, error.message);
+        lastError = error;
+        continue;
+      }
     }
 
     throw this.handleApiError(lastError);
@@ -892,7 +1034,7 @@ class BinanceAPI {
   // Get futures account information with P&L data
   async getFuturesAccountInfo() {
     try {
-      const futuresAccount = await this.makeFuturesRequest('/fapi/v2/account');
+      const futuresAccount = await this.makeFuturesRequest('/fapi/v2/account', 'GET');
       
       // Calculate total unrealized PnL from positions
       if (futuresAccount && futuresAccount.positions) {
@@ -928,7 +1070,7 @@ class BinanceAPI {
       if (symbol) params.symbol = symbol;
       if (incomeType) params.incomeType = incomeType; // REALIZED_PNL, FUNDING_FEE, etc.
       
-      const income = await this.makeFuturesRequest('/fapi/v1/income', params);
+      const income = await this.makeFuturesRequest('/fapi/v1/income', 'GET', params);
       return income || [];
     } catch (error) {
       console.warn('Failed to get futures income:', error.message);
@@ -993,7 +1135,7 @@ class BinanceAPI {
         // 3. Fetch orders for each symbol
         for (const futuresSymbol of symbolsToTry) {
           try {
-            const orders = await this.makeFuturesRequest('/fapi/v1/allOrders', { 
+            const orders = await this.makeFuturesRequest('/fapi/v1/allOrders', 'GET', { 
               symbol: futuresSymbol, 
               limit: Math.min(100, Math.ceil(limit / symbolsToTry.length) + 10)
             });
@@ -1025,7 +1167,7 @@ class BinanceAPI {
       }
       
       // Get orders for specific symbol
-      const orders = await this.makeFuturesRequest('/fapi/v1/allOrders', { symbol, limit });
+      const orders = await this.makeFuturesRequest('/fapi/v1/allOrders', 'GET', { symbol, limit });
       return orders.map(order => ({
         ...order,
         isFutures: true,
@@ -1227,7 +1369,7 @@ class BinanceAPI {
               const params = { symbol: futuresSymbol, limit: Math.min(limit, 20) };
               if (startTime) params.startTime = startTime;
               
-              const orders = await this.makeFuturesRequest('/fapi/v1/allOrders', params);
+              const orders = await this.makeFuturesRequest('/fapi/v1/allOrders', 'GET', params);
               if (orders && orders.length > 0) {
                 const futuresOrders = orders
                   .filter(order => !startTime || (order.time || order.updateTime || 0) >= startTime)
@@ -1255,7 +1397,7 @@ class BinanceAPI {
             const params = { symbol, limit: Math.min(limit, 15) };
             if (startTime) params.startTime = startTime;
             
-            const orders = await this.makeFuturesRequest('/fapi/v1/allOrders', params);
+            const orders = await this.makeFuturesRequest('/fapi/v1/allOrders', 'GET', params);
             if (orders && orders.length > 0) {
               const futuresOrders = orders
                 .filter(order => !startTime || (order.time || order.updateTime || 0) >= startTime)
@@ -1280,7 +1422,7 @@ class BinanceAPI {
       const params = { symbol, limit };
       if (startTime) params.startTime = startTime;
       
-      const orders = await this.makeFuturesRequest('/fapi/v1/allOrders', params);
+      const orders = await this.makeFuturesRequest('/fapi/v1/allOrders', 'GET', params);
       return orders
         .filter(order => !startTime || (order.time || order.updateTime || 0) >= startTime)
         .map(order => ({
@@ -1541,7 +1683,7 @@ class BinanceAPI {
       if (symbol) {
         params.symbol = symbol;
       }
-      const orders = await this.makeFuturesRequest('/fapi/v1/openOrders', params);
+      const orders = await this.makeFuturesRequest('/fapi/v1/openOrders', 'GET', params);
       return orders.map(order => ({
         ...order,
         isFutures: true,
@@ -1562,10 +1704,10 @@ class BinanceAPI {
   async getFuturesPositions() {
     try {
       // Get position risk data (comprehensive position info) - this gives us ROE
-      const positionRisk = await this.makeFuturesRequest('/fapi/v2/positionRisk');
+      const positionRisk = await this.makeFuturesRequest('/fapi/v2/positionRisk', 'GET');
       
       // Get account info for unrealized PnL data - this gives us ROI
-      const accountInfo = await this.makeFuturesRequest('/fapi/v2/account');
+      const accountInfo = await this.makeFuturesRequest('/fapi/v2/account', 'GET');
       
       // Filter only positions with non-zero amounts
       const activePositions = positionRisk.filter(position => parseFloat(position.positionAmt) !== 0);
@@ -1652,7 +1794,7 @@ class BinanceAPI {
       if (symbol) params.symbol = symbol;
       if (startTime) params.startTime = startTime;
       
-      const response = await this.makeFuturesRequest('/fapi/v1/userTrades', params);
+      const response = await this.makeFuturesRequest('/fapi/v1/userTrades', 'GET', params);
       return response.map(trade => ({
         ...trade,
         isFutures: true,
@@ -1671,7 +1813,7 @@ class BinanceAPI {
       if (incomeType) params.incomeType = incomeType;
       if (startTime) params.startTime = startTime;
       
-      const response = await this.makeFuturesRequest('/fapi/v1/income', params);
+      const response = await this.makeFuturesRequest('/fapi/v1/income', 'GET', params);
       return response.map(transaction => ({
         ...transaction,
         isFutures: true,
@@ -1690,7 +1832,7 @@ class BinanceAPI {
       if (symbol) params.symbol = symbol;
       if (startTime) params.startTime = startTime;
       
-      const response = await this.makeFuturesRequest('/fapi/v1/income', { 
+      const response = await this.makeFuturesRequest('/fapi/v1/income', 'GET', { 
         ...params, 
         incomeType: 'FUNDING_FEE' 
       });
@@ -1745,6 +1887,187 @@ class BinanceAPI {
         success: false,
         error: error.message
       };
+    }
+  }
+
+  // Trading Methods
+  
+  // Get available symbols for trading
+  async getSymbols(market = 'spot') {
+    try {
+      if (market === 'spot') {
+        const response = await this.makeRequest('/api/v3/exchangeInfo');
+        return response.symbols
+          .filter(symbol => symbol.status === 'TRADING' && symbol.symbol.endsWith('USDT'))
+          .map(symbol => symbol.symbol)
+          .slice(0, 50); // Limit to top 50 symbols
+      } else {
+        const response = await this.makeFuturesRequest('/fapi/v1/exchangeInfo', 'GET');
+        return response.symbols
+          .filter(symbol => symbol.status === 'TRADING' && symbol.contractType === 'PERPETUAL')
+          .map(symbol => symbol.symbol)
+          .slice(0, 50);
+      }
+    } catch (error) {
+      console.warn('Failed to get symbols:', error);
+      return ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT'];
+    }
+  }
+
+  // Get current price for a symbol
+  async getCurrentPrice(symbol, market = 'spot') {
+    try {
+      if (market === 'spot') {
+        const response = await this.makeRequest('/api/v3/ticker/price', { symbol });
+        return { price: parseFloat(response.price) };
+      } else {
+        const response = await this.makeFuturesRequest('/fapi/v1/ticker/price', 'GET', { symbol });
+        return { price: parseFloat(response.price) };
+      }
+    } catch (error) {
+      console.warn('Failed to get current price:', error);
+      return null;
+    }
+  }
+
+  // Place spot order
+  async placeSpotOrder(orderParams) {
+    if (this.useMockData) {
+      // Return mock order for demo
+      return {
+        symbol: orderParams.symbol,
+        orderId: Math.floor(Math.random() * 1000000),
+        clientOrderId: 'mock_order_' + Date.now(),
+        transactTime: Date.now(),
+        price: orderParams.price?.toString() || '0',
+        origQty: orderParams.quantity.toString(),
+        executedQty: orderParams.type === 'MARKET' ? orderParams.quantity.toString() : '0',
+        cummulativeQuoteQty: orderParams.type === 'MARKET' ? 
+          (orderParams.quantity * (orderParams.price || 50000)).toString() : '0',
+        status: orderParams.type === 'MARKET' ? 'FILLED' : 'NEW',
+        timeInForce: 'GTC',
+        type: orderParams.type,
+        side: orderParams.side
+      };
+    }
+
+    try {
+      const params = {
+        symbol: orderParams.symbol,
+        side: orderParams.side,
+        type: orderParams.type,
+        quantity: orderParams.quantity
+      };
+
+      // Add price for limit orders
+      if (orderParams.type === 'LIMIT') {
+        params.timeInForce = 'GTC';
+        params.price = orderParams.price;
+      }
+
+      const response = await this.makePostRequest('/api/v3/order', params, false);
+      return response;
+    } catch (error) {
+      console.error('Failed to place spot order:', error);
+      throw new Error(`Order failed: ${error.message}`);
+    }
+  }
+
+  // Place futures order
+  async placeFuturesOrder(orderParams) {
+    if (this.useMockData) {
+      // Return mock order for demo
+      return {
+        symbol: orderParams.symbol,
+        orderId: Math.floor(Math.random() * 1000000),
+        clientOrderId: 'mock_futures_order_' + Date.now(),
+        transactTime: Date.now(),
+        price: orderParams.price?.toString() || '0',
+        origQty: orderParams.quantity.toString(),
+        executedQty: orderParams.type === 'MARKET' ? orderParams.quantity.toString() : '0',
+        cumQuote: orderParams.type === 'MARKET' ? 
+          (orderParams.quantity * (orderParams.price || 50000)).toString() : '0',
+        status: orderParams.type === 'MARKET' ? 'FILLED' : 'NEW',
+        timeInForce: 'GTC',
+        type: orderParams.type,
+        side: orderParams.side,
+        positionSide: 'BOTH'
+      };
+    }
+
+    try {
+      // Set leverage first if provided
+      if (orderParams.leverage) {
+        await this.setLeverage(orderParams.symbol, orderParams.leverage);
+      }
+
+      const params = {
+        symbol: orderParams.symbol,
+        side: orderParams.side,
+        type: orderParams.type,
+        quantity: orderParams.quantity
+      };
+
+      // Add price for limit orders
+      if (orderParams.type === 'LIMIT') {
+        params.timeInForce = 'GTC';
+        params.price = orderParams.price;
+      }
+
+      const response = await this.makePostRequest('/fapi/v1/order', params, true);
+      return response;
+    } catch (error) {
+      console.error('Failed to place futures order:', error);
+      throw new Error(`Futures order failed: ${error.message}`);
+    }
+  }
+
+  // Set leverage for futures trading
+  async setLeverage(symbol, leverage) {
+    if (this.useMockData) {
+      return { leverage: leverage, maxNotional: '100000', symbol: symbol };
+    }
+
+    try {
+      const params = {
+        symbol: symbol,
+        leverage: leverage
+      };
+
+      const response = await this.makePostRequest('/fapi/v1/leverage', params, true);
+      return response;
+    } catch (error) {
+      console.warn('Failed to set leverage:', error);
+      // Don't throw error as order can still proceed
+      return null;
+    }
+  }
+
+  // Cancel order
+  async cancelOrder(symbol, orderId, market = 'spot') {
+    if (this.useMockData) {
+      return {
+        symbol: symbol,
+        orderId: orderId,
+        clientOrderId: 'mock_cancel_' + Date.now(),
+        status: 'CANCELED'
+      };
+    }
+
+    try {
+      const params = {
+        symbol: symbol,
+        orderId: orderId
+      };
+
+      if (market === 'spot') {
+        return await this.makeDeleteRequest('/api/v3/order', params, false);
+      } else {
+        return await this.makeFuturesRequest('/fapi/v1/order', 'DELETE', params);
+      }
+    } catch (error) {
+      console.error('Failed to cancel order:', error);
+      throw new Error(`Cancel order failed: ${error.message}`);
     }
   }
 }

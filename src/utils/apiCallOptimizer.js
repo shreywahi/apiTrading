@@ -152,18 +152,18 @@ class ApiCallOptimizer {
       ]);
 
       const orderData = {
-        spotOrders: spotOrders.status === 'fulfilled' ? spotOrders.value : [],
-        futuresOrders: futuresOrders.status === 'fulfilled' ? futuresOrders.value : [],
-        openOrders: openOrders.status === 'fulfilled' ? openOrders.value : [],
-        futuresOpenOrders: futuresOpenOrders.status === 'fulfilled' ? futuresOpenOrders.value : [],
+        spotOrders: spotOrders.status === 'fulfilled' ? spotOrders.value : undefined,
+        futuresOrders: futuresOrders.status === 'fulfilled' ? futuresOrders.value : undefined,
+        openOrders: openOrders.status === 'fulfilled' ? openOrders.value : undefined,
+        futuresOpenOrders: futuresOpenOrders.status === 'fulfilled' ? futuresOpenOrders.value : undefined,
         lastUpdated: Date.now()
       };
 
       console.log('🔍 Optimized order data fetched:', {
-        spotOrders: orderData.spotOrders.length,
-        futuresOrders: orderData.futuresOrders.length,
-        spotOpenOrders: orderData.openOrders.length,
-        futuresOpenOrders: orderData.futuresOpenOrders.length
+        spotOrders: orderData.spotOrders ? orderData.spotOrders.length : 'failed',
+        futuresOrders: orderData.futuresOrders ? orderData.futuresOrders.length : 'failed',
+        spotOpenOrders: orderData.openOrders ? orderData.openOrders.length : 'failed',
+        futuresOpenOrders: orderData.futuresOpenOrders ? orderData.futuresOpenOrders.length : 'failed'
       });
 
       // Cache with longer TTL since orders don't change as frequently
@@ -501,6 +501,39 @@ class ApiCallOptimizer {
         console.warn(`Batch order processing failed for ${symbol}:`, error.message);
       }
     }
+  }
+
+  /**
+   * Force clear all caches after order operations
+   * This ensures fresh data is fetched after trades/cancellations
+   */
+  clearAllCaches() {
+    this.cache.hot.clear();
+    this.cache.warm.clear();
+    this.cache.cold.clear();
+    console.log('💥 All caches cleared after order operation');
+  }
+
+  /**
+   * Clear order-specific caches
+   * More targeted clearing for order operations
+   */
+  clearOrderCaches() {
+    // Clear all order-related cache keys
+    const orderKeys = [];
+    this.cache.warm.forEach((value, key) => {
+      if (key.includes('order_data_') || key.includes('portfolio_data')) {
+        orderKeys.push(key);
+      }
+    });
+    orderKeys.forEach(key => {
+      this.cache.warm.delete(key);
+      console.log(`🗑️ Cleared order cache: ${key}`);
+    });
+
+    // Also clear hot cache for portfolio data
+    this.cache.hot.delete('portfolio_data');
+    console.log('🔄 Order-specific caches cleared');
   }
 
   /**
