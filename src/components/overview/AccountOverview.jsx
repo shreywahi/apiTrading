@@ -77,7 +77,7 @@ const AccountOverview = ({
           </div>
           <div className="card-content">
             <h3>Orders Management</h3>
-            <p className="value orders-count">{openOrdersCount} open • {totalOrdersCount} total orders</p>
+            <p className="value">{openOrdersCount} open</p>
             <small className="sub-value">Active & Recent Orders</small>
           </div>
         </div>
@@ -88,7 +88,7 @@ const AccountOverview = ({
           </div>
           <div className="card-content">
             <h3>Trading Center</h3>
-            <p className="value trading-label">Spot & Futures</p>
+            <p className="value">Spot & Futures</p>
             <small className="sub-value">Place buy/sell orders</small>
           </div>
         </div>
