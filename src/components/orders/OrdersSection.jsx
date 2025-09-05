@@ -47,14 +47,10 @@ const OrdersSection = ({
     setClosingOrders(prev => ({ ...prev, [orderId]: true }));
 
     try {
-      console.log(`🎯 Cancelling ${market} order:`, { orderId, symbol });
-      
       // Cancel the order
       const result = await binanceApi.cancelOrder(symbol, orderId, market);
-      console.log('✅ Order cancelled successfully:', result);
 
       // Immediately remove from UI optimistically for instant feedback
-      console.log('🎯 Applying optimistic UI update - removing cancelled order from display');
       setOptimisticallyRemovedOrders(prev => new Set([...prev, orderId]));
       
       // Clear all caches to ensure fresh data
@@ -64,9 +60,7 @@ const OrdersSection = ({
 
       // Trigger immediate data refresh in parent component
       if (onOrderCancelled) {
-        console.log('🔄 Triggering immediate data refresh...');
         await onOrderCancelled(orderId);
-        console.log('✅ Immediate refresh successful');
       }
 
     } catch (error) {
@@ -78,15 +72,6 @@ const OrdersSection = ({
         updated.delete(orderId);
         return updated;
       });
-      
-      // Provide specific feedback for common API issues
-      if (error.message.includes('CORS')) {
-        console.log('ℹ️ CORS error detected - this is a browser/network security limitation');
-      } else if (error.message.includes('403') || error.message.includes('Forbidden')) {
-        console.log('ℹ️ 403 Forbidden detected - likely API rate limiting. Please wait before trying again');
-      } else if (error.message.includes('400')) {
-        console.log('ℹ️ 400 Bad Request - order may already be cancelled or invalid');
-      }
       
     } finally {
       // Remove from closing state after a delay

@@ -63,7 +63,6 @@ export class BinancePerformanceOptimizer {
 
       return priceMap;
     } catch (error) {
-      console.warn('Specific price fetch failed:', error.message);
       return {};
     }
   }

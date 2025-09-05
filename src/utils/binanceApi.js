@@ -55,7 +55,6 @@ class BinanceAPI {
 
   // Check API key permissions by testing different endpoints
   async checkApiPermissions() {
-    console.log('🔍 Checking API key permissions...');
     const permissions = {
       spot: false,
       futures: false,
@@ -66,7 +65,6 @@ class BinanceAPI {
       // Test spot trading permissions
       await this.makeRequest('/api/v3/account');
       permissions.spot = true;
-      console.log('✅ Spot trading permissions: OK');
     } catch (error) {
       console.warn('❌ Spot trading permissions: FAILED -', error.message);
     }
@@ -75,7 +73,6 @@ class BinanceAPI {
       // Test futures trading permissions
       await this.makeFuturesRequest('/fapi/v2/account', 'GET');
       permissions.futures = true;
-      console.log('✅ Futures trading permissions: OK');
     } catch (error) {
       console.warn('❌ Futures trading permissions: FAILED -', error.message);
       if (error.message.includes('403')) {
@@ -216,13 +213,6 @@ class BinanceAPI {
       'Content-Type': 'application/json',
     };
     
-    // Debug logging to check if API key is being set
-    if (!this.apiKey) {
-      console.warn('⚠️ No API key found in headers!');
-    } else {
-      console.log('✅ API key set in headers (first 8 chars):', this.apiKey.substring(0, 8) + '...');
-    }
-    
     return headers;
   }
 
@@ -322,24 +312,6 @@ class BinanceAPI {
         this.workingEndpoint = baseUrl;
         return response.data;
       } catch (error) {
-        console.warn(`❌ Failed with ${baseUrl}:`, error.message);
-        
-        // Mark if local proxy failed
-        if (baseUrl === API_ENDPOINTS.LOCAL_PROXY) {
-          localProxyFailed = true;
-        }
-        
-        // Log more details for 400 errors
-        if (error.response?.status === 400) {
-          console.error('400 Error Details:', {
-            status: error.response.status,
-            data: error.response.data,
-            headers: error.response.headers,
-            timestamp: timestamp,
-            queryString: queryParams.toString()
-          });
-        }
-        
         lastError = error;
         continue;
       }
@@ -420,7 +392,6 @@ class BinanceAPI {
         }
         
         const url = `${baseUrl}${finalEndpoint}`;
-        console.log(`Trying futures ${method} request to:`, url);
         
         let response;
         const axiosConfig = { 
@@ -442,8 +413,6 @@ class BinanceAPI {
           // GET method (default)
           response = await axios.get(`${url}?${queryParams.toString()}`, axiosConfig);
         }
-        
-        console.log(`✅ Futures ${method} success with:`, baseUrl);
         return response.data;
       } catch (error) {
         console.warn(`❌ Futures failed with ${baseUrl}:`, error.message);
@@ -1045,7 +1014,6 @@ class BinanceAPI {
           }
         });
         futuresAccount.totalUnrealizedPnl = totalUnrealizedPnl;
-        console.log('✅ Futures account loaded with P&L:', totalUnrealizedPnl);
       }
       
       return futuresAccount;
@@ -1161,8 +1129,6 @@ class BinanceAPI {
         const sortedOrders = allOrders
           .sort((a, b) => (b.time || b.updateTime || 0) - (a.time || a.updateTime || 0))
           .slice(0, limit);
-          
-        console.log(`Fetched ${sortedOrders.length} futures orders from ${symbolsToTry.length} symbols`);
         return sortedOrders;
       }
       
@@ -1184,10 +1150,7 @@ class BinanceAPI {
     try {
       const allOrders = [];
       const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000); // 30 days ago for better coverage
-      
-      console.log('Fetching comprehensive order history from the past 30 days...');
-      console.log('30 days ago timestamp:', thirtyDaysAgo, new Date(thirtyDaysAgo).toISOString());
-      
+            
       // If symbol is provided, get orders for that specific symbol from both markets
       if (symbol) {
         const [spotOrders, futuresOrders] = await Promise.allSettled([
@@ -1213,10 +1176,7 @@ class BinanceAPI {
         recentOrders.sort((a, b) => (b.time || b.updateTime || 0) - (a.time || a.updateTime || 0));
         return recentOrders.slice(0, limit);
       }
-      
-      // For getting comprehensive orders across all symbols, discover symbols from account
-      console.log('Discovering traded symbols from account data...');
-      
+            
       // Strategy 1: Get symbols from account balances (spots assets you've traded)
       let discoveredSymbols = [];
       try {
@@ -1236,7 +1196,6 @@ class BinanceAPI {
             tradingPairs.push(`${asset}ETH`);
           }
           discoveredSymbols = [...new Set(tradingPairs)]; // Remove duplicates
-          console.log(`Discovered ${discoveredSymbols.length} potential trading pairs from account balances`);
         }
       } catch (error) {
         console.warn('Failed to get account for symbol discovery:', error.message);
@@ -1245,13 +1204,11 @@ class BinanceAPI {
       // Strategy 2: Add comprehensive list of popular symbols
       // Combine discovered and popular symbols, prioritizing discovered ones
       const symbolsToCheck = [...new Set([...discoveredSymbols.slice(0, 20), ...POPULAR_FUTURES_SYMBOLS])].slice(0, 40);
-      console.log(`Checking orders for ${symbolsToCheck.length} symbols`);
       
       // Strategy 3: Get recent futures orders from active positions and comprehensive symbols
       try {
         const futuresOrders = await this.getRecentFuturesOrders(null, Math.floor(limit * 0.5), thirtyDaysAgo);
         allOrders.push(...futuresOrders);
-        console.log(`Got ${futuresOrders.length} recent futures orders`);
       } catch (error) {
         console.warn('Failed to get futures orders:', error.message);
       }
@@ -1274,7 +1231,6 @@ class BinanceAPI {
             continue; // Skip symbols that error
           }
         }
-        console.log(`Total orders after spot symbols: ${allOrders.length}`);
       } catch (error) {
         console.warn('Failed to get spot orders from symbols:', error.message);
       }
@@ -1282,7 +1238,6 @@ class BinanceAPI {
       // Strategy 5: Get recent trades to fill any gaps
       if (allOrders.length < limit / 2) {
         try {
-          console.log('Getting recent trades to fill order list...');
           const trades = await this.getRecentTrades(25, thirtyDaysAgo);
           if (trades && trades.length > 0) {
             const tradeOrders = trades
@@ -1300,7 +1255,6 @@ class BinanceAPI {
                 market: 'Spot'
               }));
             allOrders.push(...tradeOrders);
-            console.log(`Added ${tradeOrders.length} recent trades as orders`);
           }
         } catch (error) {
           console.warn('Failed to get recent trades (non-critical):', error.message);
@@ -1321,8 +1275,6 @@ class BinanceAPI {
       );
       
       uniqueOrders.sort((a, b) => (b.time || b.updateTime || 0) - (a.time || a.updateTime || 0));
-      
-      console.log(`Returning ${uniqueOrders.length} unique orders from comprehensive search`);
       return uniqueOrders.slice(0, limit);
       
     } catch (error) {
@@ -1600,7 +1552,6 @@ class BinanceAPI {
         if (allTrades.length >= limit) break;
       }
       
-      console.log(`Added ${allTrades.length} recent trades as orders`);
       return allTrades.slice(0, limit);
     } catch (error) {
       console.warn('Failed to get recent trades:', error.message);
@@ -1749,19 +1700,7 @@ class BinanceAPI {
           if (margin > 0) {
             roi = (unrealizedPnl / margin) * 100;
           }
-        }
-        
-        console.log(`Position ${position.symbol}:`, {
-          roe: roe,
-          roi: roi,
-          unrealizedPnl: unrealizedPnl,
-          initialMargin: accountPosition?.initialMargin,
-          percentage: position.percentage,
-          entryPrice: entryPrice,
-          markPrice: markPrice,
-          positionAmt: positionAmt
-        });
-        
+        }        
         return {
           ...position,
           // Binance's direct values
@@ -1778,8 +1717,6 @@ class BinanceAPI {
           maintMargin: accountPosition?.maintMargin || '0'
         };
       });
-      
-      console.log('Enhanced positions with ROE/ROI from Binance:', enhancedPositions);
       return enhancedPositions;
     } catch (error) {
       console.warn('Failed to get futures positions:', error.message);

@@ -108,8 +108,6 @@ export const useDashboardData = (binanceApi) => {
     try {
       setRefreshing(true);
       
-      console.log('🔄 Refreshing order data after order changes...');
-      
       // Fetch all order-related data that would be affected by order changes
       const [openOrdersResult, futuresDataResult] = await Promise.allSettled([
         binanceApi.getOpenOrders(),
@@ -119,7 +117,6 @@ export const useDashboardData = (binanceApi) => {
       // Update spot open orders
       if (openOrdersResult.status === 'fulfilled') {
         setOpenOrders(openOrdersResult.value);
-        console.log('✅ Updated spot open orders:', openOrdersResult.value.length);
       }
 
       // Update all futures order data
@@ -130,14 +127,6 @@ export const useDashboardData = (binanceApi) => {
         setTradeHistory(futuresData.tradeHistory || []);
         setTransactionHistory(futuresData.transactionHistory || []);
         setFundingFeeHistory(futuresData.fundingFees || []);
-        
-        console.log('✅ Updated futures data:', {
-          openOrders: futuresData.openOrders?.length || 0,
-          orderHistory: futuresData.orderHistory?.length || 0,
-          tradeHistory: futuresData.tradeHistory?.length || 0,
-          transactionHistory: futuresData.transactionHistory?.length || 0,
-          fundingFees: futuresData.fundingFees?.length || 0
-        });
       }
 
       // Also refresh account data to update balances after orders

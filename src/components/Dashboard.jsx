@@ -45,7 +45,6 @@ const Dashboard = ({ binanceApi, onLogout }) => {
       // Check API permissions for better error handling
       binanceApi.checkApiPermissions?.()
         .then(permissions => {
-          console.log('📋 API Permissions:', permissions);
           if (!permissions.futures) {
             console.warn('⚠️ Futures trading not enabled - some features may not work');
           }
@@ -203,16 +202,6 @@ const Dashboard = ({ binanceApi, onLogout }) => {
 
   const { totalValue, totalPnL, spotValue, futuresValue } = calculatePnL(accountData);
 
-  // Debug logging for orders
-  console.log('🎯 Dashboard orders data:', {
-    spotOpenOrders: openOrders.length,
-    futuresOpenOrders: futuresOpenOrders.length,
-    totalOpenOrders: openOrders.length + futuresOpenOrders.length,
-    spotOrders: orders.length,
-    futuresOrderHistory: futuresOrderHistory.length,
-    totalOrders: orders.length + futuresOrderHistory.length
-  });
-
   return (
     <div className={`dashboard ${darkMode ? 'dark-mode' : ''}`}>
       <CosmicBackground darkMode={darkMode} />
@@ -289,8 +278,6 @@ const Dashboard = ({ binanceApi, onLogout }) => {
             formatDate={formatDate}
             binanceApi={binanceApi}
             onOrderCancelled={async (orderId) => {
-              console.log('🚫 Order cancelled - refreshing order data immediately');
-              
               // Clear cache for fresh data on next refresh
               if (binanceApi.clearPriceCache) {
                 binanceApi.clearPriceCache();
@@ -298,15 +285,11 @@ const Dashboard = ({ binanceApi, onLogout }) => {
               
               // Use order-focused refresh for immediate and comprehensive update
               try {
-                console.log('📡 Refreshing order data after cancellation...');
                 await refreshOrderData();
-                console.log('✅ Order data refresh successful');
               } catch (refreshError) {
-                console.warn('⚠️ Order data refresh failed, falling back to full refresh:', refreshError.message);
                 // Fallback to full refresh if order refresh fails
                 try {
                   await fetchData();
-                  console.log('✅ Full refresh fallback successful');
                 } catch (fullRefreshError) {
                   console.error('❌ Both order refresh and full refresh failed:', fullRefreshError.message);
                 }
@@ -322,7 +305,6 @@ const Dashboard = ({ binanceApi, onLogout }) => {
               formatCurrency={formatCurrency}
               binanceApi={binanceApi}
               onOrderPlaced={() => {
-                console.log('🎯 Order placed - refreshing order data comprehensively');
                 // Clear cache to ensure fresh data and trigger order refresh
                 if (binanceApi.clearPriceCache) {
                   binanceApi.clearPriceCache();
@@ -331,13 +313,13 @@ const Dashboard = ({ binanceApi, onLogout }) => {
                 refreshOrderData();
                 // Secondary refresh after delay to ensure Binance has processed the order
                 setTimeout(() => {
-                  console.log('🔄 Secondary order refresh to ensure order visibility');
                   refreshOrderData();
                 }, 2000); // 2 second delay for more reliable updates
               }}
             />
           </TradingErrorBoundary>
         )}
+
       </div>
     </div>
   );

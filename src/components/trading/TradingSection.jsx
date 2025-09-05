@@ -29,15 +29,7 @@ const TradingSection = ({
 
   // Debug logging
   useEffect(() => {
-    console.log('🎯 Trading Section State:', {
-      selectedMarket,
-      shouldUseMockMode,
-      symbolList: symbolList.length,
-      symbol,
-      currentPrice,
-      isInitialized,
-      componentLoading
-    });
+    // Remove debug logging
   }, [selectedMarket, shouldUseMockMode, symbolList, symbol, currentPrice, isInitialized, componentLoading]);
 
   // Load available symbols on mount
@@ -250,7 +242,6 @@ const TradingSection = ({
       
       // Trigger data refresh in parent component
       if (onOrderPlaced && typeof onOrderPlaced === 'function') {
-        console.log('🔄 Triggering order data refresh after successful order placement');
         onOrderPlaced();
       }
       
@@ -329,7 +320,6 @@ const TradingSection = ({
             <button 
               className={`tab-btn ${selectedMarket === 'spot' ? 'active' : ''}`}
               onClick={() => {
-                console.log('Switching to spot market');
                 setSelectedMarket('spot');
                 setMessage({ type: '', text: '' });
               }}
@@ -339,7 +329,6 @@ const TradingSection = ({
             <button 
               className={`tab-btn ${selectedMarket === 'futures' ? 'active' : ''}`}
               onClick={() => {
-                console.log('Switching to futures market');
                 setSelectedMarket('futures');
                 setMessage({ type: '', text: '' });
               }}

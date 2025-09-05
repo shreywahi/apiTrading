@@ -17,14 +17,6 @@ const AccountOverview = ({
   // Check if futures data is available
   const hasFuturesData = accountData?.futures || accountData?.futuresAccount;
   
-  // Debug logging for orders count
-  console.log('📊 AccountOverview received:', {
-    openOrdersCount,
-    totalOrdersCount,
-    totalPnL,
-    hasFuturesData
-  });
-  
   return (
     <section className="overview-section">
       <div className="overview-grid">

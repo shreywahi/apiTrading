@@ -159,13 +159,6 @@ class ApiCallOptimizer {
         lastUpdated: Date.now()
       };
 
-      console.log('🔍 Optimized order data fetched:', {
-        spotOrders: orderData.spotOrders ? orderData.spotOrders.length : 'failed',
-        futuresOrders: orderData.futuresOrders ? orderData.futuresOrders.length : 'failed',
-        spotOpenOrders: orderData.openOrders ? orderData.openOrders.length : 'failed',
-        futuresOpenOrders: orderData.futuresOpenOrders ? orderData.futuresOpenOrders.length : 'failed'
-      });
-
       // Cache with longer TTL since orders don't change as frequently
       this.setCachedData(cacheKey, orderData, 'warm', 60000);
       
@@ -358,9 +351,7 @@ class ApiCallOptimizer {
           }
         });
         futuresAccount.totalUnrealizedPnl = totalUnrealizedPnl;
-        console.log('🔄 Portfolio optimizer calculated P&L:', totalUnrealizedPnl);
       } else if (futuresAccount.totalUnrealizedPnl !== undefined) {
-        console.log('✅ Portfolio optimizer using existing P&L:', futuresAccount.totalUnrealizedPnl);
       }
     }
 
@@ -528,12 +519,10 @@ class ApiCallOptimizer {
     });
     orderKeys.forEach(key => {
       this.cache.warm.delete(key);
-      console.log(`🗑️ Cleared order cache: ${key}`);
     });
 
     // Also clear hot cache for portfolio data
     this.cache.hot.delete('portfolio_data');
-    console.log('🔄 Order-specific caches cleared');
   }
 
   /**

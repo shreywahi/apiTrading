@@ -118,14 +118,6 @@ export const useUltraOptimizedDashboardData = (binanceApi) => {
           accountType: portfolioData.spotAccount?.accountType || accountData?.accountType
         };
 
-        console.log('🔄 Ultra-optimized account data assembled:', {
-          hasFutures: !!enrichedAccountData.futures,
-          spotValue: enrichedAccountData.spotWalletValue,
-          futuresValue: enrichedAccountData.futuresWalletValue,
-          totalValue: enrichedAccountData.totalPortfolioValue,
-          futuresData: enrichedAccountData.futures
-        });
-
         setAccountData(enrichedAccountData);
 
         // Create backup of valid data before updating order states
@@ -160,12 +152,6 @@ export const useUltraOptimizedDashboardData = (binanceApi) => {
             futuresOrderHistory: orderData.futuresOrders || prev.futuresOrderHistory,
             lastValidUpdate: Date.now()
           }));
-          
-          console.log('🔄 Order data refreshed in fast refresh');
-        } else {
-          // If order data fetch failed but we have backup data, preserve it
-          console.log('⚠️ Order data unavailable, preserving existing data');
-          // Don't clear existing order data, keep what we have
         }
 
         // Update performance metrics
@@ -184,10 +170,8 @@ export const useUltraOptimizedDashboardData = (binanceApi) => {
       
       // Try to restore from backup instead of showing zero data
       if (restoreFromBackup()) {
-        console.log('✅ Successfully restored data from backup');
         setError(null); // Clear error since we recovered
       } else {
-        console.log('❌ No valid backup available, showing error');
         setError(error.message);
       }
     } finally {
@@ -241,13 +225,6 @@ export const useUltraOptimizedDashboardData = (binanceApi) => {
       if (orderData) {
         setOrders(orderData.spotOrders.reverse());
         setOpenOrders(orderData.openOrders);
-        
-        console.log('📋 Ultra-optimized orders data:', {
-          spotOrders: orderData.spotOrders?.length || 0,
-          spotOpenOrders: orderData.openOrders?.length || 0,
-          futuresOrders: orderData.futuresOrders?.length || 0,
-          futuresOpenOrders: orderData.futuresOpenOrders?.length || 0
-        });
         
         // Set futures order data if available
         if (orderData.futuresOrders) {
@@ -360,12 +337,9 @@ export const useUltraOptimizedDashboardData = (binanceApi) => {
    * This prevents the "zero orders" issue during API rate limiting
    */
   const optimisticOrderCancel = (orderId) => {
-    console.log('🎯 Applying optimistic order cancellation for order:', orderId);
-    
     // Immediately remove the cancelled order from UI
     setFuturesOpenOrders(prev => {
       const filtered = prev.filter(order => order.orderId.toString() !== orderId.toString());
-      console.log(`📉 Open orders count: ${prev.length} → ${filtered.length}`);
       return filtered;
     });
     
@@ -386,8 +360,6 @@ export const useUltraOptimizedDashboardData = (binanceApi) => {
    */
   const restoreFromBackup = () => {
     if (dataBackup.lastValidUpdate && (Date.now() - dataBackup.lastValidUpdate) < 600000) { // 10 minutes
-      console.log('🔄 Restoring data from backup due to API failure');
-      
       if (dataBackup.accountData) {
         setAccountData(dataBackup.accountData);
       }
