@@ -1,5 +1,6 @@
 import { RefreshCw, LogOut, Activity, Sun, Moon, Plus } from 'lucide-react';
 import './DashboardHeader.css';
+import logo from '../logo.jpg';
 
 const DashboardHeader = ({
   darkMode,
@@ -25,7 +26,7 @@ const DashboardHeader = ({
         <div className="header-content">
           {/* Left section: Logo, Title, and Pause indicator */}
           <div className="header-left">
-            <img src="/logo.jpg" alt="Logo" className="header-logo" />
+            <img src={logo} alt="Logo" className="header-logo" />
             <span 
               className={`auto-refresh-indicator ${autoRefreshActive ? 'active' : 'paused'}`} 
               onClick={toggleAutoRefresh}
