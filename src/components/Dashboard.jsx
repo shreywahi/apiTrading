@@ -171,7 +171,6 @@ const Dashboard = ({ binanceApi, onLogout }) => {
     return (
       <div className="dashboard-container">
         <div className="dashboard-header">
-          <h1>Trading Dashboard</h1>
           <button onClick={onLogout} className="logout-btn">Logout</button>
         </div>
         {renderError(error)}

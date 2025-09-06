@@ -26,7 +26,6 @@ const DashboardHeader = ({
           {/* Left section: Logo, Title, and Pause indicator */}
           <div className="header-left">
             <img src="/logo.jpg" alt="Logo" className="header-logo" />
-            <h1>Trading Dashboard</h1>
             <span 
               className={`auto-refresh-indicator ${autoRefreshActive ? 'active' : 'paused'}`} 
               onClick={toggleAutoRefresh}
