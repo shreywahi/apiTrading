@@ -12,17 +12,37 @@ const AccountOverview = ({
   formatCurrency, 
   calculatePnL,
   onToggleSection,
-  accountData 
+  accountData,
+  displayCurrency 
 }) => {
   // Check if futures data is available
   const hasFuturesData = accountData?.futures || accountData?.futuresAccount;
+  
+  // Get currency icon based on selected currency
+  const getCurrencyIcon = (currency) => {
+    switch (currency) {
+      case 'EUR':
+        return '€';
+      case 'INR':
+        return '₹';
+      case 'USD':
+      default:
+        return <DollarSign size={24} />;
+    }
+  };
+
+  const currencyIcon = getCurrencyIcon(displayCurrency);
   
   return (
     <section className="overview-section">
       <div className="overview-grid">
         <div className="overview-card clickable" onClick={() => onToggleSection('portfolio')}>
           <div className="card-icon">
-            <DollarSign size={24} />
+            {typeof currencyIcon === 'string' ? (
+              <span style={{ fontSize: '24px', fontWeight: 'bold' }}>{currencyIcon}</span>
+            ) : (
+              currencyIcon
+            )}
           </div>
           <div className="card-content">
             <h3>Portfolio</h3>

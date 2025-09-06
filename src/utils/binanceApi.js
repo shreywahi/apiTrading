@@ -4,25 +4,13 @@ import CryptoJS from 'crypto-js';
 // Multiple API endpoints for fallback
 const API_ENDPOINTS = {
   LOCAL_PROXY: '/api/binance',
-  FUTURES_PROXY: '/fapi/binance',
-  TESTNET_PROXY: '/api/testnet',
-  DIRECT: 'https://api.binance.com',
   FUTURES_DIRECT: 'https://fapi.binance.com',
   TESTNET_DIRECT: 'https://testnet.binance.vision'
 };
 
-// CORS proxies as fallback options
-const CORS_PROXIES = [
-  'https://api.allorigins.win/raw?url=',
-  'https://corsproxy.io/?',
-  'https://cors-anywhere.herokuapp.com/'
-];
-
 // Popular futures symbols used throughout the API calls
 const POPULAR_FUTURES_SYMBOLS = [
-  'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'XRPUSDT',
-  'XLMUSDT', 'BCHUSDT', 'AAVEUSDT', 'ALGOUSDT', 'HBARUSDT',
-  'SOLUSDT', 'PAXGUSDT', 'DOGEUSDT'
+  'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'BCHUSDT', 'AAVEUSDT', 'PAXGUSDT'
 ];
 
 class BinanceAPI {
@@ -40,7 +28,7 @@ class BinanceAPI {
     try {
       const serverTimeEndpoint = this.useTestnet ? 
         `${API_ENDPOINTS.TESTNET_DIRECT}/api/v3/time` : 
-        `${API_ENDPOINTS.DIRECT}/api/v3/time`;
+        `${API_ENDPOINTS.LOCAL_PROXY}/api/v3/time`;
       
       const response = await axios.get(serverTimeEndpoint, { timeout: 5000 });
       const serverTime = response.data.serverTime;
@@ -223,8 +211,8 @@ class BinanceAPI {
     
     // Try different endpoints in order of preference
     const endpointsToTry = this.useTestnet ? 
-      [API_ENDPOINTS.TESTNET_PROXY, API_ENDPOINTS.TESTNET_DIRECT] :
-      [API_ENDPOINTS.LOCAL_PROXY, API_ENDPOINTS.DIRECT];
+      [API_ENDPOINTS.TESTNET_DIRECT] :
+      [API_ENDPOINTS.LOCAL_PROXY];
 
     let lastError = null;
 
@@ -279,7 +267,8 @@ class BinanceAPI {
     const timestamp = this.getTimestamp();
     const queryParams = new URLSearchParams({
       ...params,
-      timestamp: timestamp
+      timestamp: timestamp,
+      recvWindow: 60000
     });
 
     const signature = this.generateSignature(queryParams.toString());
@@ -287,7 +276,7 @@ class BinanceAPI {
 
     // Try different endpoints in order of preference
     const endpointsToTry = this.useTestnet ? 
-      [API_ENDPOINTS.TESTNET_PROXY, API_ENDPOINTS.TESTNET_DIRECT] :
+      [API_ENDPOINTS.TESTNET_DIRECT] :
       [API_ENDPOINTS.LOCAL_PROXY];
 
     // If we have a working endpoint from previous calls, try it first
@@ -314,34 +303,6 @@ class BinanceAPI {
       } catch (error) {
         lastError = error;
         continue;
-      }
-    }
-
-    // Only try CORS proxies if local proxy failed and we're not on testnet
-    if (localProxyFailed && !this.useTestnet) {
-      console.log('Local proxy failed, trying CORS proxies as fallback...');
-      
-      for (const proxyUrl of CORS_PROXIES) {
-        try {
-          const directUrl = API_ENDPOINTS.DIRECT;
-          const fullUrl = `${proxyUrl}${directUrl}${endpoint}?${queryParams.toString()}`;
-          console.log('Trying CORS proxy:', fullUrl);
-          
-          const response = await axios.get(fullUrl, { 
-            headers: {
-              ...this.getHeaders(),
-              'X-Requested-With': 'XMLHttpRequest'
-            },
-            timeout: 15000 
-          });
-          
-          this.workingEndpoint = proxyUrl + directUrl;
-          return response.data;
-        } catch (error) {
-          console.warn(`CORS proxy ${proxyUrl} failed:`, error.message);
-          lastError = error;
-          continue;
-        }
       }
     }
 
@@ -378,7 +339,7 @@ class BinanceAPI {
     queryParams.append('signature', signature);
 
     // Try futures endpoints with better fallback handling
-    const endpointsToTry = [API_ENDPOINTS.FUTURES_PROXY, API_ENDPOINTS.FUTURES_DIRECT];
+    const endpointsToTry = [API_ENDPOINTS.FUTURES_DIRECT];
     let lastError = null;
     let proxyFailed = false;
 
@@ -387,9 +348,6 @@ class BinanceAPI {
         // For proxy endpoints, strip /fapi from the beginning of endpoint
         // For direct endpoints, keep the full endpoint
         let finalEndpoint = endpoint;
-        if (baseUrl === API_ENDPOINTS.FUTURES_PROXY && endpoint.startsWith('/fapi/')) {
-          finalEndpoint = endpoint.substring(5); // Remove '/fapi' prefix
-        }
         
         const url = `${baseUrl}${finalEndpoint}`;
         
@@ -416,13 +374,6 @@ class BinanceAPI {
         return response.data;
       } catch (error) {
         console.warn(`❌ Futures failed with ${baseUrl}:`, error.message);
-        
-        // If proxy fails with 403, mark it as failed and continue to direct
-        if (baseUrl === API_ENDPOINTS.FUTURES_PROXY && error.response?.status === 403) {
-          proxyFailed = true;
-          console.warn('🚨 Local proxy returned 403 - may be a CORS/authentication issue');
-          console.warn('📡 Trying direct endpoint as fallback...');
-        }
         
         lastError = error;
         continue;
@@ -470,8 +421,8 @@ class BinanceAPI {
 
     // Choose endpoints based on spot/futures
     const endpointsToTry = isFutures ? 
-      [API_ENDPOINTS.FUTURES_PROXY, API_ENDPOINTS.FUTURES_DIRECT] :
-      [API_ENDPOINTS.LOCAL_PROXY, API_ENDPOINTS.DIRECT];
+      [API_ENDPOINTS.FUTURES_DIRECT] :
+      [API_ENDPOINTS.LOCAL_PROXY];
 
     let lastError = null;
 
@@ -479,9 +430,6 @@ class BinanceAPI {
       try {
         // For proxy endpoints, adjust the endpoint path
         let finalEndpoint = endpoint;
-        if (isFutures && baseUrl === API_ENDPOINTS.FUTURES_PROXY && endpoint.startsWith('/fapi/')) {
-          finalEndpoint = endpoint.substring(5); // Remove '/fapi' prefix
-        }
 
         const url = `${baseUrl}${finalEndpoint}`;
         
@@ -534,8 +482,8 @@ class BinanceAPI {
 
     // Choose endpoints based on spot/futures
     const endpointsToTry = isFutures ? 
-      [API_ENDPOINTS.FUTURES_PROXY, API_ENDPOINTS.FUTURES_DIRECT] :
-      [API_ENDPOINTS.LOCAL_PROXY, API_ENDPOINTS.DIRECT];
+      [API_ENDPOINTS.FUTURES_DIRECT] :
+      [API_ENDPOINTS.LOCAL_PROXY];
 
     let lastError = null;
 
@@ -543,9 +491,6 @@ class BinanceAPI {
       try {
         // For proxy endpoints, adjust the endpoint path
         let finalEndpoint = endpoint;
-        if (isFutures && baseUrl === API_ENDPOINTS.FUTURES_PROXY && endpoint.startsWith('/fapi/')) {
-          finalEndpoint = endpoint.substring(5); // Remove '/fapi' prefix
-        }
 
         const url = `${baseUrl}${finalEndpoint}?${queryParams.toString()}`;
         
@@ -1568,18 +1513,14 @@ class BinanceAPI {
     }
 
     try {
-      let url = `/api/v3/ticker/24hr`;
+      let endpoint = `/api/v3/ticker/24hr`;
       const params = {};
       if (symbol) {
         params.symbol = symbol;
       }
       
-      // This endpoint doesn't require authentication
-      const queryParams = new URLSearchParams(params);
-      const fullUrl = `${this.baseUrl}${url}?${queryParams.toString()}`;
-      
-      const response = await axios.get(fullUrl, { timeout: 10000 });
-      return response.data;
+      // Use public request method for ticker data
+      return await this.makePublicRequest(endpoint, params);
     } catch (error) {
       throw new Error(`Failed to get ticker data: ${error.response?.data?.msg || error.message}`);
     }

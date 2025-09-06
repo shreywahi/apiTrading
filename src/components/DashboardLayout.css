@@ -12,17 +12,6 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .dashboard-content {
-    padding: 1rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .dashboard-content {
-    padding: 0.5rem;
-  }
+  padding-top: 120px; /* Space from fixed header */
+  padding-bottom: 100px; /* Space for bottom bar - reduced from 120px */
 }

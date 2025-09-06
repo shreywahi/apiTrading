@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Activity, AlertCircle, CheckCircle } from 'lucide-react';
+import { TrendingUp, Activity, AlertCircle, CheckCircle, Zap } from 'lucide-react';
 import './TradingSection.css';
 
 const TradingSection = ({ 
@@ -8,7 +8,7 @@ const TradingSection = ({
   binanceApi,
   onOrderPlaced  // Add callback for order placement
 }) => {
-  const [selectedMarket, setSelectedMarket] = useState('spot');
+  const [selectedMarket, setSelectedMarket] = useState('futures');
   const [orderType, setOrderType] = useState('limit');
   const [side, setSide] = useState('buy');
   const [symbol, setSymbol] = useState('BTCUSDT');
@@ -71,8 +71,7 @@ const TradingSection = ({
       } else {
         // Fallback symbols when API is not available
         const fallbackSymbols = [
-          'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT', 
-          'DOGEUSDT', 'XRPUSDT', 'LTCUSDT', 'LINKUSDT', 'DOTUSDT'
+          'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'BCHUSDT', 'AAVEUSDT', 'PAXGUSDT'
         ];
         setSymbolList(fallbackSymbols);
         if (!symbol) {
@@ -82,8 +81,7 @@ const TradingSection = ({
     } catch (error) {
       console.warn('Failed to load symbols, using fallback:', error);
       const fallbackSymbols = [
-        'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT', 
-        'DOGEUSDT', 'XRPUSDT', 'LTCUSDT', 'LINKUSDT', 'DOTUSDT'
+        'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'BCHUSDT', 'AAVEUSDT', 'PAXGUSDT'
       ];
       setSymbolList(fallbackSymbols);
       if (!symbol) {
@@ -106,13 +104,10 @@ const TradingSection = ({
           'BTCUSDT': 43500 + Math.random() * 2000,
           'ETHUSDT': 2400 + Math.random() * 200,
           'BNBUSDT': 310 + Math.random() * 30,
-          'ADAUSDT': 0.45 + Math.random() * 0.1,
-          'SOLUSDT': 95 + Math.random() * 15,
-          'DOGEUSDT': 0.075 + Math.random() * 0.015,
-          'XRPUSDT': 0.55 + Math.random() * 0.05,
-          'LTCUSDT': 145 + Math.random() * 25,
-          'LINKUSDT': 12 + Math.random() * 3,
-          'DOTUSDT': 8 + Math.random() * 2
+          'XRPUSDT': 23.55 + Math.random() * 0.5,
+          'BCHUSDT': 145 + Math.random() * 25,
+          'AAVEUSDT': 12 + Math.random() * 3,
+          'PAXGUSDT': 8 + Math.random() * 2
         };
         const mockPrice = mockPrices[symbol] || (1000 + Math.random() * 500);
         setCurrentPrice(mockPrice);
@@ -127,13 +122,10 @@ const TradingSection = ({
         'BTCUSDT': 43500 + Math.random() * 2000,
         'ETHUSDT': 2400 + Math.random() * 200,
         'BNBUSDT': 310 + Math.random() * 30,
-        'ADAUSDT': 0.45 + Math.random() * 0.1,
-        'SOLUSDT': 95 + Math.random() * 15,
-        'DOGEUSDT': 0.075 + Math.random() * 0.015,
-        'XRPUSDT': 0.55 + Math.random() * 0.05,
-        'LTCUSDT': 145 + Math.random() * 25,
-        'LINKUSDT': 12 + Math.random() * 3,
-        'DOTUSDT': 8 + Math.random() * 2
+        'XRPUSDT': 23.55 + Math.random() * 0.5,
+        'BCHUSDT': 145 + Math.random() * 25,
+        'AAVEUSDT': 12 + Math.random() * 3,
+        'PAXGUSDT': 8 + Math.random() * 2
       };
       const fallbackPrice = mockPrices[symbol] || (1000 + Math.random() * 1000);
       setCurrentPrice(fallbackPrice);
@@ -287,11 +279,11 @@ const TradingSection = ({
       ) : (
         <>
           <div className="trading-header">
-            <div className="header-content">
-              <div className="header-icon">
-                <TrendingUp size={24} />
+            <div className="header-content-centered">
+              <div className="header-icon animated-icon">
+                <Zap size={24} />
               </div>
-              <div>
+              <div className="header-text">
                 <h2>Trading Center {shouldUseMockMode && <span className="demo-badge">DEMO</span>}</h2>
                 <p>
                   {shouldUseMockMode 

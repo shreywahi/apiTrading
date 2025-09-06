@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 
 export const useAutoRefresh = (fetchData, shouldStart = true, fastRefresh = null) => {
-  const [autoRefreshTimer, setAutoRefreshTimer] = useState(5);
+  const [autoRefreshTimer, setAutoRefreshTimer] = useState(3);
   const [autoRefreshActive, setAutoRefreshActive] = useState(false);
 
   const handleManualRefresh = () => {
-    setAutoRefreshTimer(5);
+    setAutoRefreshTimer(3);
     // Use fast refresh if available for manual refreshes, otherwise full refresh
     if (fastRefresh && typeof fastRefresh === 'function') {
       fastRefresh();
@@ -17,7 +17,7 @@ export const useAutoRefresh = (fetchData, shouldStart = true, fastRefresh = null
   const toggleAutoRefresh = () => {
     setAutoRefreshActive(!autoRefreshActive);
     if (!autoRefreshActive) {
-      setAutoRefreshTimer(5);
+      setAutoRefreshTimer(3);
     }
   };
 
@@ -34,7 +34,7 @@ export const useAutoRefresh = (fetchData, shouldStart = true, fastRefresh = null
           } else {
             fetchData(true);
           }
-          return 5;
+          return 3;
         }
         return prev - 1;
       });
@@ -46,7 +46,7 @@ export const useAutoRefresh = (fetchData, shouldStart = true, fastRefresh = null
   // Reset timer when shouldStart becomes true (when data loading completes)
   useEffect(() => {
     if (shouldStart && autoRefreshActive) {
-      setAutoRefreshTimer(5);
+      setAutoRefreshTimer(3);
     }
   }, [shouldStart, autoRefreshActive]);
 

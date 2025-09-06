@@ -17,7 +17,6 @@ import OrdersSection from './orders/OrdersSection';
 import TradingSection from './trading/TradingSection';
 import TradingErrorBoundary from './trading/TradingErrorBoundary';
 import LoadingSpinner from './common/LoadingSpinner';
-import ErrorDisplay from './common/ErrorDisplay';
 
 // Utils
 import { calculatePnL, formatDate } from '../utils/dashboardUtils';
@@ -30,7 +29,7 @@ const Dashboard = ({ binanceApi, onLogout }) => {
   // UI State
   const [expandedSection, setExpandedSection] = useState('portfolio');
   const [hideSmallBalances, setHideSmallBalances] = useState(true);
-  const [activeWalletTab, setActiveWalletTab] = useState('spot');
+  const [activeWalletTab, setActiveWalletTab] = useState('futures');
   const [activeFuturesTab, setActiveFuturesTab] = useState('open-orders');
   const [darkMode, setDarkMode] = useState(true);
   const [useOptimizedFetch, setUseOptimizedFetch] = useState(true);
@@ -231,6 +230,7 @@ const Dashboard = ({ binanceApi, onLogout }) => {
           calculatePnL={() => calculatePnL(accountData)}
           onToggleSection={toggleSection}
           accountData={accountData}
+          displayCurrency={displayCurrency}
         />
 
         {expandedSection === 'portfolio' && (

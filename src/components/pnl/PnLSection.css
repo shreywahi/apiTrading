@@ -233,3 +233,169 @@
 .dark-mode .pnl-item span:first-child {
   color: #a0aec0;
 }
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .pnl-card {
+    padding: 1.5rem;
+  }
+  
+  .pnl-card h3 {
+    font-size: 1.1rem;
+  }
+  
+  .pnl-value {
+    font-size: 2rem;
+  }
+  
+  .pnl-percentage {
+    font-size: 1rem;
+  }
+  
+  .current-positions {
+    padding: 1rem;
+  }
+  
+  .current-positions h4 {
+    font-size: 1.2rem;
+  }
+  
+  .positions-table-container {
+    overflow-x: auto;
+  }
+  
+  .futures-table {
+    min-width: 700px;
+  }
+  
+  .futures-table th,
+  .futures-table td {
+    padding: 0.75rem 0.5rem;
+    font-size: 0.8rem;
+  }
+  
+  .side {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.6rem;
+    min-width: 50px;
+  }
+  
+  .pnl-breakdown {
+    padding: 1rem;
+  }
+  
+  .pnl-breakdown h4 {
+    font-size: 1.1rem;
+  }
+  
+  .pnl-item {
+    padding: 0.5rem 0;
+  }
+  
+  .pnl-item span:last-child {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .pnl-card {
+    padding: 1rem;
+  }
+  
+  .pnl-card h3 {
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .pnl-value {
+    font-size: 1.75rem;
+  }
+  
+  .pnl-percentage {
+    font-size: 0.9rem;
+  }
+  
+  .current-positions {
+    padding: 0.75rem;
+  }
+  
+  .current-positions h4 {
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .futures-description {
+    font-size: 0.8rem;
+    margin-bottom: 1rem;
+  }
+  
+  .futures-table {
+    min-width: 600px;
+  }
+  
+  .futures-table th,
+  .futures-table td {
+    padding: 0.5rem 0.3rem;
+    font-size: 0.7rem;
+  }
+  
+  .side {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.5rem;
+    min-width: 45px;
+  }
+  
+  .pnl-breakdown {
+    padding: 0.75rem;
+  }
+  
+  .pnl-breakdown h4 {
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .pnl-item {
+    padding: 0.4rem 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+  
+  .pnl-item span:last-child {
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .pnl-card {
+    padding: 0.75rem;
+  }
+  
+  .pnl-value {
+    font-size: 1.5rem;
+  }
+  
+  .current-positions {
+    padding: 0.5rem;
+  }
+  
+  .futures-table {
+    min-width: 550px;
+  }
+  
+  .futures-table th,
+  .futures-table td {
+    padding: 0.4rem 0.25rem;
+    font-size: 0.65rem;
+  }
+  
+  .side {
+    font-size: 0.6rem;
+    padding: 0.1rem 0.4rem;
+    min-width: 40px;
+  }
+  
+  .pnl-breakdown {
+    padding: 0.5rem;
+  }
+}

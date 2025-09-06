@@ -18,6 +18,13 @@
   position: relative;
 }
 
+/* Mobile responsive body and html handling */
+@media (max-width: 768px) {
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
 .error-banner {
   position: fixed;
   top: 0;
@@ -78,4 +85,48 @@ body {
 
 * {
   box-sizing: border-box;
+}
+
+/* Mobile responsive improvements */
+@media (max-width: 768px) {
+  .error-banner {
+    padding: 0.75rem;
+  }
+  
+  .error-banner p {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.9rem;
+  }
+  
+  .error-actions {
+    gap: 0.75rem;
+  }
+  
+  .help-btn, .demo-btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .error-banner {
+    padding: 0.5rem;
+  }
+  
+  .error-banner p {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.8rem;
+  }
+  
+  .error-actions {
+    gap: 0.5rem;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .help-btn, .demo-btn {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.75rem;
+    min-width: 120px;
+  }
 }

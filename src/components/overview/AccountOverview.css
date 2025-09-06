@@ -17,16 +17,11 @@
   margin-bottom: 2rem;
 }
 
-/* Mobile responsiveness - stack on smaller screens */
+/* Mobile responsiveness - 2x2 grid on small screens */
 @media (max-width: 1200px) {
   .overview-grid {
     grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 768px) {
-  .overview-grid {
-    grid-template-columns: 1fr;
+    gap: 1.2rem;
   }
 }
 
