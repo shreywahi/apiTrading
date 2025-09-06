@@ -29,7 +29,7 @@ class BinanceAPI {
     try {
       const serverTimeEndpoint = this.useTestnet ? 
         `${API_ENDPOINTS.TESTNET_DIRECT}/api/v3/time` : 
-        `${API_ENDPOINTS.LOCAL_PROXY}/api/v3/time`;
+        `${API_ENDPOINTS.SPOT_DIRECT}/api/v3/time`;
       
       const response = await axios.get(serverTimeEndpoint, { timeout: 5000 });
       const serverTime = response.data.serverTime;
@@ -209,11 +209,14 @@ class BinanceAPI {
   async makePublicRequest(endpoint, params = {}) {
     // Public endpoints don't need authentication
     const queryParams = new URLSearchParams(params);
-    
+
     // Try different endpoints in order of preference - try direct API first for spot
-    const endpointsToTry = this.useTestnet ? 
-      [API_ENDPOINTS.TESTNET_DIRECT] :
-      [API_ENDPOINTS.SPOT_DIRECT, API_ENDPOINTS.LOCAL_PROXY];
+    const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+    const endpointsToTry = this.useTestnet
+      ? [API_ENDPOINTS.TESTNET_DIRECT]
+      : isLocalhost
+        ? [API_ENDPOINTS.LOCAL_PROXY]
+        : [API_ENDPOINTS.SPOT_DIRECT];
 
     let lastError = null;
 
@@ -307,9 +310,12 @@ class BinanceAPI {
     queryParams.append('signature', signature);
 
     // Try different endpoints in order of preference - use direct API for spot with fallback
-    const endpointsToTry = this.useTestnet ? 
-      [API_ENDPOINTS.TESTNET_DIRECT] :
-      [API_ENDPOINTS.LOCAL_PROXY];
+    const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+    const endpointsToTry = this.useTestnet
+      ? [API_ENDPOINTS.TESTNET_DIRECT]
+      : isLocalhost
+        ? [API_ENDPOINTS.LOCAL_PROXY]
+        : [API_ENDPOINTS.SPOT_DIRECT];
 
     // If we have a working endpoint from previous calls, try it first
     if (this.workingEndpoint && !endpointsToTry.includes(this.workingEndpoint)) {
@@ -452,9 +458,12 @@ class BinanceAPI {
     queryParams.append('signature', signature);
 
     // Choose endpoints based on spot/futures - for spot use proxy first (CORS), for futures use direct
-    const endpointsToTry = isFutures ? 
-      [API_ENDPOINTS.FUTURES_DIRECT] :
-      [API_ENDPOINTS.LOCAL_PROXY, API_ENDPOINTS.SPOT_DIRECT];
+    const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+    const endpointsToTry = isFutures
+      ? [API_ENDPOINTS.FUTURES_DIRECT]
+      : isLocalhost
+        ? [API_ENDPOINTS.LOCAL_PROXY]
+        : [API_ENDPOINTS.SPOT_DIRECT];
 
     let lastError = null;
 
@@ -513,9 +522,12 @@ class BinanceAPI {
     queryParams.append('signature', signature);
 
     // Choose endpoints based on spot/futures - for spot use proxy first (CORS), for futures use direct
-    const endpointsToTry = isFutures ? 
-      [API_ENDPOINTS.FUTURES_DIRECT] :
-      [API_ENDPOINTS.LOCAL_PROXY, API_ENDPOINTS.SPOT_DIRECT];
+    const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+    const endpointsToTry = isFutures
+      ? [API_ENDPOINTS.FUTURES_DIRECT]
+      : isLocalhost
+        ? [API_ENDPOINTS.LOCAL_PROXY]
+        : [API_ENDPOINTS.SPOT_DIRECT];
 
     let lastError = null;
 
