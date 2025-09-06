@@ -4,9 +4,10 @@ import CryptoJS from 'crypto-js';
 // Multiple API endpoints for fallback
 const API_ENDPOINTS = {
   LOCAL_PROXY: '/api/binance',
-  SPOT_DIRECT: 'https://api.binance.com',
+  // SPOT_DIRECT: 'https://api.binance.com',
   FUTURES_DIRECT: 'https://fapi.binance.com',
-  TESTNET_DIRECT: 'https://testnet.binance.vision'
+  TESTNET_DIRECT: 'https://testnet.binance.vision',
+  PROD_PROXY: 'https://proxy-wesr.onrender.com/api/binance/spot' // Updated to your deployed proxy URL
 };
 
 // Popular futures symbols used throughout the API calls
@@ -29,7 +30,7 @@ class BinanceAPI {
     try {
       const serverTimeEndpoint = this.useTestnet ? 
         `${API_ENDPOINTS.TESTNET_DIRECT}/api/v3/time` : 
-        `${API_ENDPOINTS.SPOT_DIRECT}/api/v3/time`;
+        `${API_ENDPOINTS.PROD_PROXY}/api/v3/time`;
       
       const response = await axios.get(serverTimeEndpoint, { timeout: 5000 });
       const serverTime = response.data.serverTime;
@@ -216,7 +217,7 @@ class BinanceAPI {
       ? [API_ENDPOINTS.TESTNET_DIRECT]
       : isLocalhost
         ? [API_ENDPOINTS.LOCAL_PROXY]
-        : [API_ENDPOINTS.SPOT_DIRECT];
+        : [API_ENDPOINTS.PROD_PROXY];
 
     let lastError = null;
 
@@ -315,7 +316,7 @@ class BinanceAPI {
       ? [API_ENDPOINTS.TESTNET_DIRECT]
       : isLocalhost
         ? [API_ENDPOINTS.LOCAL_PROXY]
-        : [API_ENDPOINTS.SPOT_DIRECT];
+        : [API_ENDPOINTS.PROD_PROXY]; // Try proxy first in prod
 
     // If we have a working endpoint from previous calls, try it first
     if (this.workingEndpoint && !endpointsToTry.includes(this.workingEndpoint)) {
@@ -323,17 +324,27 @@ class BinanceAPI {
     }
 
     let lastError = null;
-    let localProxyFailed = false;
 
     // Try each endpoint
     for (const baseUrl of endpointsToTry) {
       try {
-        const url = `${baseUrl}${endpoint}?${queryParams.toString()}`;
-        
-        const response = await axios.get(url, { 
-          headers: this.getHeaders(),
-          timeout: 15000 
-        });
+        let response;
+        if (baseUrl === API_ENDPOINTS.PROD_PROXY) {
+          // Use proxy: send POST with body
+          response = await axios.post(baseUrl, {
+            endpoint,
+            params,
+            apiKey: this.apiKey,
+            apiSecret: this.apiSecret
+          }, { timeout: 15000 });
+        } else {
+          // Direct or local proxy: send GET with query params and headers
+          const url = `${baseUrl}${endpoint}?${queryParams.toString()}`;
+          response = await axios.get(url, { 
+            headers: this.getHeaders(),
+            timeout: 15000 
+          });
+        }
         
         // If successful, cache this endpoint
         this.workingEndpoint = baseUrl;
@@ -463,7 +474,7 @@ class BinanceAPI {
       ? [API_ENDPOINTS.FUTURES_DIRECT]
       : isLocalhost
         ? [API_ENDPOINTS.LOCAL_PROXY]
-        : [API_ENDPOINTS.SPOT_DIRECT];
+        : [API_ENDPOINTS.PROD_PROXY];
 
     let lastError = null;
 
@@ -527,7 +538,7 @@ class BinanceAPI {
       ? [API_ENDPOINTS.FUTURES_DIRECT]
       : isLocalhost
         ? [API_ENDPOINTS.LOCAL_PROXY]
-        : [API_ENDPOINTS.SPOT_DIRECT];
+        : [API_ENDPOINTS.PROD_PROXY];
 
     let lastError = null;
 
