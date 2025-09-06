@@ -291,18 +291,9 @@ const Dashboard = ({ binanceApi, onLogout }) => {
               if (binanceApi.clearPriceCache) {
                 binanceApi.clearPriceCache();
               }
-              
-              // Use order-focused refresh for immediate and comprehensive update
-              try {
-                await refreshOrderData();
-              } catch (refreshError) {
-                // Fallback to full refresh if order refresh fails
-                try {
-                  await fetchData();
-                } catch (fullRefreshError) {
-                  console.error('❌ Both order refresh and full refresh failed:', fullRefreshError.message);
-                }
-              }
+
+              // Force a full refresh after cancellation to guarantee order history updates
+              await fetchData();
             }}
           />
         )}

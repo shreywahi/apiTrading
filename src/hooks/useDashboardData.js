@@ -125,14 +125,20 @@ export const useDashboardData = (binanceApi) => {
       setRefreshing(true);
       
       // Fetch all order-related data that would be affected by order changes
-      const [openOrdersResult, futuresDataResult] = await Promise.allSettled([
+      const [openOrdersResult, spotOrderHistoryResult, futuresDataResult] = await Promise.allSettled([
         binanceApi.getOpenOrders(),
+        binanceApi.getSpotOnlyOrderHistory(null, 100),
         binanceApi.getFuturesOrdersData()
       ]);
 
       // Update spot open orders
       if (openOrdersResult.status === 'fulfilled') {
         setOpenOrders(openOrdersResult.value);
+      }
+
+      // Update spot order history
+      if (spotOrderHistoryResult.status === 'fulfilled') {
+        setOrders(spotOrderHistoryResult.value.reverse());
       }
 
       // Update all futures order data

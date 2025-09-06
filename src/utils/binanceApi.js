@@ -2108,51 +2108,59 @@ class BinanceAPI {
           .map(balance => balance.asset)
           .slice(0, 10); // Limit to avoid too many API calls
 
-        const allOrders = [];
-        
-        // Get orders for active trading pairs
+        // Always include common pairs for completeness
+        const commonPairs = ['BTCUSDC', 'ETHUSDC', 'BNBUSDC', 'ADAUSDC', 'SOLUSDC', 'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT'];
+
+        const allPairs = new Set();
+        // Add pairs from active assets
         for (const asset of activeAssets) {
           if (asset === 'USDT' || asset === 'BUSD' || asset === 'USDC') continue; // Skip stablecoins
-          
-          const pairs = [`${asset}USDT`, `${asset}BTC`, `${asset}ETH`];
-          for (const pair of pairs) {
-            try {
-              const orders = await this.makeRequest('/api/v3/allOrders', { 
-                symbol: pair, 
-                limit: 100  // Get more orders to allow for time filtering
-              });
-              if (orders && orders.length > 0) {
-                // Filter by time (last 6 months) on client side
-                const recentOrders = orders.filter(order => 
-                  (order.time || order.updateTime || 0) >= startTime
-                );
-                allOrders.push(...recentOrders.map(order => ({
-                  ...order,
-                  market: 'Spot'
-                })));
-              }
-            } catch (error) {
-              continue; // Skip pairs that don't exist or have no orders
+          allPairs.add(`${asset}USDT`);
+          allPairs.add(`${asset}BTC`);
+          allPairs.add(`${asset}ETH`);
+        }
+        // Add common pairs
+        for (const pair of commonPairs) {
+          allPairs.add(pair);
+        }
+
+        const allOrders = [];
+        // Fetch orders for each pair
+        for (const pair of Array.from(allPairs)) {
+          try {
+            const orders = await this.makeRequest('/api/v3/allOrders', {
+              symbol: pair,
+              limit: 100 // Get more orders to allow for time filtering
+            });
+            if (orders && orders.length > 0) {
+              // Filter by time (last 6 months) on client side
+              const recentOrders = orders.filter(order =>
+                (order.time || order.updateTime || 0) >= startTime
+              );
+              allOrders.push(...recentOrders.map(order => ({
+                ...order,
+                market: 'Spot'
+              })));
             }
-            
-            if (allOrders.length >= limit) break;
+          } catch (error) {
+            continue; // Skip pairs that don't exist or have no orders
           }
           if (allOrders.length >= limit) break;
         }
-        
+
         // Sort by time (most recent first)
         allOrders.sort((a, b) => (b.time || b.updateTime || 0) - (a.time || a.updateTime || 0));
-        
+
         // Additional filtering to ensure no futures contamination
         const spotOnlyOrders = allOrders.filter(order => {
           // Exclude any orders that might be futures-related
           const symbol = order.symbol || '';
-          return !symbol.includes('PERP') && 
+          return !symbol.includes('PERP') &&
                  !symbol.includes('_') &&  // Futures symbols sometimes use underscores
                  !order.positionSide &&   // Futures-specific field
                  !order.reduceOnly;       // Futures-specific field
         });
-        
+
         return spotOnlyOrders.slice(0, limit);
       } else {
         // Get orders for specific symbol

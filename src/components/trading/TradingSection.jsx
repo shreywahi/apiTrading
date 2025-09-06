@@ -358,33 +358,7 @@ const TradingSection = ({
             </button>
             
             {/* Test Access Button - Show for both markets */}
-            {binanceApi && !shouldUseMockMode && (
-              <button 
-                className="test-btn"
-                onClick={async () => {
-                  console.log(`Testing ${selectedMarket} trading access...`);
-                  const result = selectedMarket === 'spot' 
-                    ? await binanceApi.testSpotTradingAccess()
-                    : await binanceApi.testFuturesTradingAccess();
-                  setMessage({
-                    type: result.success ? 'success' : 'error',
-                    text: `${selectedMarket.charAt(0).toUpperCase() + selectedMarket.slice(1)} test ${result.success ? 'passed' : 'failed'}: ${result.message}`
-                  });
-                }}
-                style={{ 
-                  marginLeft: 'auto', 
-                  fontSize: '12px', 
-                  padding: '4px 8px',
-                  backgroundColor: selectedMarket === 'spot' ? '#4a90e2' : '#e2944a',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                🧪 Test {selectedMarket.charAt(0).toUpperCase() + selectedMarket.slice(1)} Access
-              </button>
-            )}
+            {/* Test Access Button removed as requested */}
           </div>
           <br />
           <div className="trading-form-container">
