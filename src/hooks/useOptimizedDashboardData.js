@@ -27,6 +27,10 @@ export const useOptimizedDashboardData = (binanceApi) => {
   const [transactionHistory, setTransactionHistory] = useState([]);
   const [fundingFeeHistory, setFundingFeeHistory] = useState([]);
 
+  // Spot-specific data
+  const [spotTransferHistory, setSpotTransferHistory] = useState([]);
+  const [spotConvertHistory, setSpotConvertHistory] = useState([]);
+
   // Performance caching
   const priceCache = useRef({ data: {}, timestamp: 0, ttl: 30000 }); // 30s cache
   const lastFullFetch = useRef(0);
@@ -124,7 +128,7 @@ export const useOptimizedDashboardData = (binanceApi) => {
       const [spotAccount, futuresAccount, openOrdersData] = await Promise.allSettled([
         binanceApi.makeRequest('/api/v3/account'),
         binanceApi.getFuturesAccountInfo(), // Include futures for P&L
-        binanceApi.getOpenOrders()
+        binanceApi.getSpotOnlyOpenOrders() // Use spot-only open orders
       ]);
 
       if (spotAccount.status === 'fulfilled' && spotAccount.value) {
@@ -189,7 +193,7 @@ export const useOptimizedDashboardData = (binanceApi) => {
       
       // Fetch all order-related data that would be affected by order changes
       const [openOrdersResult, futuresDataResult] = await Promise.allSettled([
-        binanceApi.getOpenOrders(),
+        binanceApi.getSpotOnlyOpenOrders(), // Use spot-only open orders
         binanceApi.getFuturesOrdersData()
       ]);
 
@@ -287,10 +291,12 @@ export const useOptimizedDashboardData = (binanceApi) => {
       // Phase 4: Non-critical data (background fetch - don't block UI)
       setTimeout(async () => {
         try {
-          const [ordersResult, openOrdersResult, futuresDataResult] = await Promise.allSettled([
-            binanceApi.getAllOrders(null, 50), // Reduced from 100 to 50
-            binanceApi.getOpenOrders(),
-            binanceApi.getFuturesOrdersData()
+          const [ordersResult, openOrdersResult, futuresDataResult, transferHistoryResult, convertHistoryResult] = await Promise.allSettled([
+            binanceApi.getSpotOnlyOrderHistory(null, 50), // Use spot-only order history
+            binanceApi.getSpotOnlyOpenOrders(), // Use spot-only open orders
+            binanceApi.getFuturesOrdersData(),
+            binanceApi.getTransferHistory(), // Add transfer history
+            binanceApi.getConvertHistory() // Add convert history
           ]);
 
           // Update states as data comes in
@@ -310,6 +316,14 @@ export const useOptimizedDashboardData = (binanceApi) => {
             setTradeHistory(futuresData.tradeHistory || []);
             setTransactionHistory(futuresData.transactionHistory || []);
             setFundingFeeHistory(futuresData.fundingFees || []);
+          }
+
+          // Process spot-specific data
+          if (transferHistoryResult.status === 'fulfilled' && transferHistoryResult.value) {
+            setSpotTransferHistory(transferHistoryResult.value);
+          }
+          if (convertHistoryResult.status === 'fulfilled' && convertHistoryResult.value) {
+            setSpotConvertHistory(convertHistoryResult.value);
           }
 
         } catch (bgError) {
@@ -363,6 +377,8 @@ export const useOptimizedDashboardData = (binanceApi) => {
     tradeHistory,
     transactionHistory,
     fundingFeeHistory,
+    spotTransferHistory,
+    spotConvertHistory,
     
     // Loading states
     loading,

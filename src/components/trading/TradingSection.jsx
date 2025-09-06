@@ -11,7 +11,7 @@ const TradingSection = ({
   const [selectedMarket, setSelectedMarket] = useState('futures');
   const [orderType, setOrderType] = useState('limit');
   const [side, setSide] = useState('buy');
-  const [symbol, setSymbol] = useState('BTCUSDT');
+  const [symbol, setSymbol] = useState('BTCUSDT'); // Will be updated based on market
   const [price, setPrice] = useState('');
   const [quantity, setQuantity] = useState('');
   const [loading, setLoading] = useState(false);
@@ -48,6 +48,15 @@ const TradingSection = ({
     initializeComponent();
   }, [selectedMarket]);
 
+  // Update symbol when market changes to use correct quote currency
+  useEffect(() => {
+    if (selectedMarket === 'spot' && symbol.endsWith('USDT')) {
+      setSymbol('BTCUSDC'); // Default spot symbol
+    } else if (selectedMarket === 'futures' && symbol.endsWith('USDC')) {
+      setSymbol('BTCUSDT'); // Default futures symbol
+    }
+  }, [selectedMarket]);
+
   // Get current price when symbol changes
   useEffect(() => {
     if (symbol && isInitialized && !componentLoading) {
@@ -70,9 +79,9 @@ const TradingSection = ({
         }
       } else {
         // Fallback symbols when API is not available
-        const fallbackSymbols = [
-          'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'BCHUSDT', 'AAVEUSDT', 'PAXGUSDT'
-        ];
+        const fallbackSymbols = selectedMarket === 'spot' 
+          ? ['BTCUSDC', 'ETHUSDC', 'BNBUSDC', 'XRPUSDC', 'BCHUSDC', 'AAVEUSDC', 'PAXGUSDC']
+          : ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'BCHUSDT', 'AAVEUSDT', 'PAXGUSDT'];
         setSymbolList(fallbackSymbols);
         if (!symbol) {
           setSymbol(fallbackSymbols[0]);
@@ -80,9 +89,9 @@ const TradingSection = ({
       }
     } catch (error) {
       console.warn('Failed to load symbols, using fallback:', error);
-      const fallbackSymbols = [
-        'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'BCHUSDT', 'AAVEUSDT', 'PAXGUSDT'
-      ];
+      const fallbackSymbols = selectedMarket === 'spot' 
+        ? ['BTCUSDC', 'ETHUSDC', 'BNBUSDC', 'XRPUSDC', 'BCHUSDC', 'AAVEUSDC', 'PAXGUSDC']
+        : ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'BCHUSDT', 'AAVEUSDT', 'PAXGUSDT'];
       setSymbolList(fallbackSymbols);
       if (!symbol) {
         setSymbol(fallbackSymbols[0]);
@@ -101,13 +110,22 @@ const TradingSection = ({
       } else {
         // Mock price data for demo when API is not available
         const mockPrices = {
+          // USDT pairs (futures)
           'BTCUSDT': 43500 + Math.random() * 2000,
           'ETHUSDT': 2400 + Math.random() * 200,
           'BNBUSDT': 310 + Math.random() * 30,
           'XRPUSDT': 23.55 + Math.random() * 0.5,
           'BCHUSDT': 145 + Math.random() * 25,
           'AAVEUSDT': 12 + Math.random() * 3,
-          'PAXGUSDT': 8 + Math.random() * 2
+          'PAXGUSDT': 8 + Math.random() * 2,
+          // USDC pairs (spot)
+          'BTCUSDC': 43500 + Math.random() * 2000,
+          'ETHUSDC': 2400 + Math.random() * 200,
+          'BNBUSDC': 310 + Math.random() * 30,
+          'XRPUSDC': 23.55 + Math.random() * 0.5,
+          'BCHUSDC': 145 + Math.random() * 25,
+          'AAVEUSDC': 12 + Math.random() * 3,
+          'PAXGUSDC': 8 + Math.random() * 2
         };
         const mockPrice = mockPrices[symbol] || (1000 + Math.random() * 500);
         setCurrentPrice(mockPrice);
@@ -119,13 +137,22 @@ const TradingSection = ({
       console.warn('Failed to get current price, using fallback:', error);
       // Fallback mock price when API fails
       const mockPrices = {
+        // USDT pairs (futures)
         'BTCUSDT': 43500 + Math.random() * 2000,
         'ETHUSDT': 2400 + Math.random() * 200,
         'BNBUSDT': 310 + Math.random() * 30,
         'XRPUSDT': 23.55 + Math.random() * 0.5,
         'BCHUSDT': 145 + Math.random() * 25,
         'AAVEUSDT': 12 + Math.random() * 3,
-        'PAXGUSDT': 8 + Math.random() * 2
+        'PAXGUSDT': 8 + Math.random() * 2,
+        // USDC pairs (spot)
+        'BTCUSDC': 43500 + Math.random() * 2000,
+        'ETHUSDC': 2400 + Math.random() * 200,
+        'BNBUSDC': 310 + Math.random() * 30,
+        'XRPUSDC': 23.55 + Math.random() * 0.5,
+        'BCHUSDC': 145 + Math.random() * 25,
+        'AAVEUSDC': 12 + Math.random() * 3,
+        'PAXGUSDC': 8 + Math.random() * 2
       };
       const fallbackPrice = mockPrices[symbol] || (1000 + Math.random() * 1000);
       setCurrentPrice(fallbackPrice);
@@ -149,14 +176,16 @@ const TradingSection = ({
     
     try {
       if (selectedMarket === 'spot') {
-        const baseAsset = symbol.replace('USDT', '').replace('BTC', '').replace('ETH', '');
-        const quoteAsset = symbol.includes('USDT') ? 'USDT' : 'BTC';
+        // For spot trading, always show USDC balance for buying power
+        // and the base asset balance for selling
+        const quoteAsset = 'USDC'; // Always use USDC for spot trading
+        const baseAsset = symbol.replace('USDC', '').replace('USDT', '').replace('BTC', '').replace('ETH', '');
         
         const targetAsset = side === 'buy' ? quoteAsset : baseAsset;
         const balance = accountData.balances?.find(b => b.asset === targetAsset);
         return parseFloat(balance?.free || 0);
       } else {
-        // For futures, use USDT balance
+        // For futures, always show USDT balance
         return parseFloat(accountData.futuresAccount?.totalWalletBalance || 0);
       }
     } catch (error) {
@@ -327,31 +356,62 @@ const TradingSection = ({
             >
               Futures Trading
             </button>
-          </div>        <div className="trading-form-container">
-          {/* Symbol and Price Info */}
-          <div className="symbol-info">
-            <div className="symbol-selector">
-              <label>Trading Pair</label>
-              <select 
-                value={symbol} 
-                onChange={(e) => setSymbol(e.target.value)}
-                className="symbol-select"
-                disabled={symbolList.length === 0}
+            
+            {/* Test Access Button - Show for both markets */}
+            {binanceApi && !shouldUseMockMode && (
+              <button 
+                className="test-btn"
+                onClick={async () => {
+                  console.log(`Testing ${selectedMarket} trading access...`);
+                  const result = selectedMarket === 'spot' 
+                    ? await binanceApi.testSpotTradingAccess()
+                    : await binanceApi.testFuturesTradingAccess();
+                  setMessage({
+                    type: result.success ? 'success' : 'error',
+                    text: `${selectedMarket.charAt(0).toUpperCase() + selectedMarket.slice(1)} test ${result.success ? 'passed' : 'failed'}: ${result.message}`
+                  });
+                }}
+                style={{ 
+                  marginLeft: 'auto', 
+                  fontSize: '12px', 
+                  padding: '4px 8px',
+                  backgroundColor: selectedMarket === 'spot' ? '#4a90e2' : '#e2944a',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
               >
-                {symbolList.length > 0 ? (
-                  symbolList.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))
-                ) : (
-                  <option value="">Loading symbols...</option>
-                )}
-              </select>
+                🧪 Test {selectedMarket.charAt(0).toUpperCase() + selectedMarket.slice(1)} Access
+              </button>
+            )}
+          </div>
+          <br />
+          <div className="trading-form-container">
+            {/* Symbol and Price Info */}
+            <div className="symbol-info">
+              <div className="symbol-selector">
+                <label>Trading Pair</label>
+                <select 
+                  value={symbol} 
+                  onChange={(e) => setSymbol(e.target.value)}
+                  className="symbol-select"
+                  disabled={symbolList.length === 0}
+                >
+                  {symbolList.length > 0 ? (
+                    symbolList.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))
+                  ) : (
+                    <option value="">Loading symbols...</option>
+                  )}
+                </select>
             </div>
             
             {currentPrice && (
               <div className="current-price">
                 <span className="price-label">Current Price</span>
-                <span className="price-value">{parseFloat(currentPrice).toFixed(4)} USDT</span>
+                <span className="price-value">{parseFloat(currentPrice).toFixed(4)} {selectedMarket === 'spot' ? 'USDC' : 'USDT'}</span>
               </div>
             )}
           </div>
@@ -413,7 +473,7 @@ const TradingSection = ({
             {/* Price Input */}
             {orderType === 'limit' && (
               <div className="form-group">
-                <label>Price (USDT)</label>
+                <label>Price ({selectedMarket === 'spot' ? 'USDC' : 'USDT'})</label>
                 <div className="price-input-container">
                   <input
                     type="number"
@@ -469,13 +529,15 @@ const TradingSection = ({
               <div className="summary-row">
                 <span>Available:</span>
                 <span>{getAvailableBalance().toFixed(6)} {
-                  side === 'buy' ? 'USDT' : symbol.replace('USDT', '')
+                  selectedMarket === 'spot' 
+                    ? (side === 'buy' ? 'USDC' : symbol.replace('USDC', '').replace('USDT', ''))
+                    : 'USDT'
                 }</span>
               </div>
               {orderType === 'limit' && price && quantity && (
                 <div className="summary-row">
                   <span>Total:</span>
-                  <span>{calculateTotal().toFixed(4)} USDT</span>
+                  <span>{calculateTotal().toFixed(4)} {selectedMarket === 'spot' ? 'USDC' : 'USDT'}</span>
                 </div>
               )}
             </div>
@@ -489,7 +551,7 @@ const TradingSection = ({
               {loading ? (
                 <div className="loading-spinner-small"></div>
               ) : (
-                `${side.charAt(0).toUpperCase() + side.slice(1)} ${symbol.replace('USDT', '')}`
+                `${side.charAt(0).toUpperCase() + side.slice(1)} ${symbol.replace('USDT', '').replace('USDC', '')}`
               )}
             </button>
 

@@ -20,22 +20,6 @@ const PnLSection = ({
       </div>
       <div className="section-content">
         <div className="pnl-summary">
-          <div className="pnl-card">
-            <h3>Total Unrealized P&L</h3>
-            <p className={`pnl-value ${totalPnL >= 0 ? 'positive' : 'negative'}`}>
-              {totalPnL >= 0 ? '+' : ''}{formatCurrency(totalPnL)}
-            </p>
-            <p className="pnl-percentage">
-              {(() => {
-                const { pnlPercentage } = calculatePnL();
-                if (isNaN(pnlPercentage) || !isFinite(pnlPercentage)) {
-                  return '0.00% return';
-                }
-                return `${pnlPercentage >= 0 ? '+' : ''}${pnlPercentage.toFixed(2)}% return`;
-              })()}
-            </p>
-          </div>
-
           {positionHistory && positionHistory.length > 0 && (
             <CurrentPositions 
               positionHistory={positionHistory}

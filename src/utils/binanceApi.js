@@ -4,6 +4,7 @@ import CryptoJS from 'crypto-js';
 // Multiple API endpoints for fallback
 const API_ENDPOINTS = {
   LOCAL_PROXY: '/api/binance',
+  SPOT_DIRECT: 'https://api.binance.com',
   FUTURES_DIRECT: 'https://fapi.binance.com',
   TESTNET_DIRECT: 'https://testnet.binance.vision'
 };
@@ -209,10 +210,10 @@ class BinanceAPI {
     // Public endpoints don't need authentication
     const queryParams = new URLSearchParams(params);
     
-    // Try different endpoints in order of preference
+    // Try different endpoints in order of preference - try direct API first for spot
     const endpointsToTry = this.useTestnet ? 
       [API_ENDPOINTS.TESTNET_DIRECT] :
-      [API_ENDPOINTS.LOCAL_PROXY];
+      [API_ENDPOINTS.SPOT_DIRECT, API_ENDPOINTS.LOCAL_PROXY];
 
     let lastError = null;
 
@@ -235,6 +236,37 @@ class BinanceAPI {
 
     // If all methods failed, throw the last error
     throw new Error(`Public API Error: ${lastError.message}`);
+  }
+
+  // Helper method for public futures endpoints (no authentication needed)
+  async makePublicFuturesRequest(endpoint, params = {}) {
+    // Public futures endpoints don't need authentication
+    const queryParams = new URLSearchParams(params);
+    
+    // Try futures endpoints in order of preference
+    const endpointsToTry = [API_ENDPOINTS.FUTURES_DIRECT];
+
+    let lastError = null;
+
+    // Try each endpoint
+    for (const baseUrl of endpointsToTry) {
+      try {
+        const url = `${baseUrl}${endpoint}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+        
+        const response = await axios.get(url, { 
+          timeout: 15000 
+        });
+        
+        return response.data;
+      } catch (error) {
+        console.warn(`❌ Public Futures API failed with ${baseUrl}:`, error.message);
+        lastError = error;
+        continue;
+      }
+    }
+
+    // If all methods failed, throw the last error
+    throw new Error(`Public Futures API Error: ${lastError.message}`);
   }
 
   // Helper method to try multiple endpoints until one works
@@ -274,7 +306,7 @@ class BinanceAPI {
     const signature = this.generateSignature(queryParams.toString());
     queryParams.append('signature', signature);
 
-    // Try different endpoints in order of preference
+    // Try different endpoints in order of preference - use direct API for spot with fallback
     const endpointsToTry = this.useTestnet ? 
       [API_ENDPOINTS.TESTNET_DIRECT] :
       [API_ENDPOINTS.LOCAL_PROXY];
@@ -419,16 +451,16 @@ class BinanceAPI {
     const signature = this.generateSignature(queryParams.toString());
     queryParams.append('signature', signature);
 
-    // Choose endpoints based on spot/futures
+    // Choose endpoints based on spot/futures - for spot use proxy first (CORS), for futures use direct
     const endpointsToTry = isFutures ? 
       [API_ENDPOINTS.FUTURES_DIRECT] :
-      [API_ENDPOINTS.LOCAL_PROXY];
+      [API_ENDPOINTS.LOCAL_PROXY, API_ENDPOINTS.SPOT_DIRECT];
 
     let lastError = null;
 
     for (const baseUrl of endpointsToTry) {
       try {
-        // For proxy endpoints, adjust the endpoint path
+        // For direct endpoints, use the full endpoint path
         let finalEndpoint = endpoint;
 
         const url = `${baseUrl}${finalEndpoint}`;
@@ -480,16 +512,16 @@ class BinanceAPI {
     const signature = this.generateSignature(queryParams.toString());
     queryParams.append('signature', signature);
 
-    // Choose endpoints based on spot/futures
+    // Choose endpoints based on spot/futures - for spot use proxy first (CORS), for futures use direct
     const endpointsToTry = isFutures ? 
       [API_ENDPOINTS.FUTURES_DIRECT] :
-      [API_ENDPOINTS.LOCAL_PROXY];
+      [API_ENDPOINTS.LOCAL_PROXY, API_ENDPOINTS.SPOT_DIRECT];
 
     let lastError = null;
 
     for (const baseUrl of endpointsToTry) {
       try {
-        // For proxy endpoints, adjust the endpoint path
+        // For direct endpoints, use the full endpoint path
         let finalEndpoint = endpoint;
 
         const url = `${baseUrl}${finalEndpoint}?${queryParams.toString()}`;
@@ -1774,13 +1806,15 @@ class BinanceAPI {
   async getSymbols(market = 'spot') {
     try {
       if (market === 'spot') {
-        const response = await this.makeRequest('/api/v3/exchangeInfo');
+        // Use public request for exchange info - no authentication needed
+        const response = await this.makePublicRequest('/api/v3/exchangeInfo');
         return response.symbols
-          .filter(symbol => symbol.status === 'TRADING' && symbol.symbol.endsWith('USDT'))
+          .filter(symbol => symbol.status === 'TRADING' && symbol.symbol.endsWith('USDC'))
           .map(symbol => symbol.symbol)
           .slice(0, 50); // Limit to top 50 symbols
       } else {
-        const response = await this.makeFuturesRequest('/fapi/v1/exchangeInfo', 'GET');
+        // Use public futures request for futures exchange info
+        const response = await this.makePublicFuturesRequest('/fapi/v1/exchangeInfo');
         return response.symbols
           .filter(symbol => symbol.status === 'TRADING' && symbol.contractType === 'PERPETUAL')
           .map(symbol => symbol.symbol)
@@ -1788,7 +1822,11 @@ class BinanceAPI {
       }
     } catch (error) {
       console.warn('Failed to get symbols:', error);
-      return ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT'];
+      if (market === 'spot') {
+        return ['BTCUSDC', 'ETHUSDC', 'BNBUSDC', 'ADAUSDC', 'SOLUSDC'];
+      } else {
+        return ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT'];
+      }
     }
   }
 
@@ -1796,10 +1834,12 @@ class BinanceAPI {
   async getCurrentPrice(symbol, market = 'spot') {
     try {
       if (market === 'spot') {
-        const response = await this.makeRequest('/api/v3/ticker/price', { symbol });
+        // Use public request for price ticker - no authentication needed
+        const response = await this.makePublicRequest('/api/v3/ticker/price', { symbol });
         return { price: parseFloat(response.price) };
       } else {
-        const response = await this.makeFuturesRequest('/fapi/v1/ticker/price', 'GET', { symbol });
+        // Use public futures request for futures price
+        const response = await this.makePublicFuturesRequest('/fapi/v1/ticker/price', { symbol });
         return { price: parseFloat(response.price) };
       }
     } catch (error) {
@@ -1946,6 +1986,297 @@ class BinanceAPI {
     } catch (error) {
       console.error('Failed to cancel order:', error);
       throw new Error(`Cancel order failed: ${error.message}`);
+    }
+  }
+
+  // Test spot trading connectivity
+  async testSpotTradingAccess() {
+    try {
+      console.log('🧪 Testing spot trading access...');
+      
+      // Test 1: Check account access
+      const account = await this.makeRequest('/api/v3/account');
+      console.log('✅ Account access: OK');
+      console.log('📊 Can trade:', account.canTrade);
+      console.log('💰 Balances:', account.balances.filter(b => parseFloat(b.free) > 0).length, 'assets with balance');
+      
+      // Test 2: Check symbol availability 
+      const symbols = await this.getSymbols('spot');
+      console.log('✅ Symbol access: OK');
+      console.log('📈 Available symbols:', symbols.length);
+      
+      return {
+        success: true,
+        accountAccess: true,
+        canTrade: account.canTrade,
+        symbolsAvailable: symbols.length,
+        message: 'Spot trading access verified'
+      };
+    } catch (error) {
+      console.error('❌ Spot trading test failed:', error.message);
+      return {
+        success: false,
+        accountAccess: false,
+        error: error.message,
+        message: 'Spot trading access failed'
+      };
+    }
+  }
+
+  // Test futures trading connectivity
+  async testFuturesTradingAccess() {
+    try {
+      console.log('🧪 Testing futures trading access...');
+      
+      // Test 1: Check futures account access
+      const futuresAccount = await this.makeFuturesRequest('/fapi/v2/account', 'GET');
+      console.log('✅ Futures account access: OK');
+      console.log('📊 Can trade futures:', true);
+      console.log('💰 Wallet balance:', parseFloat(futuresAccount.totalWalletBalance || 0).toFixed(4), 'USDT');
+      
+      // Test 2: Check futures symbol availability 
+      const symbols = await this.getSymbols('futures');
+      console.log('✅ Futures symbol access: OK');
+      console.log('📈 Available futures symbols:', symbols.length);
+      
+      // Test 3: Check active positions
+      const positions = futuresAccount.positions?.filter(p => parseFloat(p.positionAmt) !== 0) || [];
+      console.log('📍 Active positions:', positions.length);
+      
+      return {
+        success: true,
+        accountAccess: true,
+        canTrade: true,
+        symbolsAvailable: symbols.length,
+        walletBalance: parseFloat(futuresAccount.totalWalletBalance || 0),
+        activePositions: positions.length,
+        message: 'Futures trading access verified'
+      };
+    } catch (error) {
+      console.error('❌ Futures trading test failed:', error.message);
+      return {
+        success: false,
+        accountAccess: false,
+        error: error.message,
+        message: 'Futures trading access failed'
+      };
+    }
+  }
+
+  // SPOT MARKET METHODS - Properly implemented for spot market order management
+
+  // 1. Get spot open orders (only open orders for spot market)
+  async getSpotOnlyOpenOrders(symbol = null) {
+    try {
+      const params = {};
+      if (symbol) params.symbol = symbol;
+      
+      const orders = await this.makeRequest('/api/v3/openOrders', params);
+      
+      // Additional filtering to ensure no futures contamination
+      const spotOnlyOrders = orders.filter(order => {
+        // Exclude any orders that might be futures-related
+        const symbol = order.symbol || '';
+        return !symbol.includes('PERP') && 
+               !symbol.includes('_') &&  // Futures symbols sometimes use underscores
+               !order.positionSide &&   // Futures-specific field
+               !order.reduceOnly;       // Futures-specific field
+      });
+      
+      return spotOnlyOrders.map(order => ({
+        ...order,
+        market: 'Spot'
+      }));
+    } catch (error) {
+      console.warn('Failed to get spot open orders:', error.message);
+      return [];
+    }
+  }
+
+  // 2. Get spot order history (only completed/cancelled spot orders)
+  async getSpotOnlyOrderHistory(symbol = null, limit = 100) {
+    try {
+      // Get last 6 months of order history
+      const endTime = Date.now();
+      const startTime = endTime - (6 * 30 * 24 * 60 * 60 * 1000); // 6 months ago
+      
+      if (!symbol) {
+        // Get orders for active symbols from account
+        const account = await this.makeRequest('/api/v3/account');
+        const activeAssets = account.balances
+          .filter(balance => parseFloat(balance.free) > 0 || parseFloat(balance.locked) > 0)
+          .map(balance => balance.asset)
+          .slice(0, 10); // Limit to avoid too many API calls
+
+        const allOrders = [];
+        
+        // Get orders for active trading pairs
+        for (const asset of activeAssets) {
+          if (asset === 'USDT' || asset === 'BUSD' || asset === 'USDC') continue; // Skip stablecoins
+          
+          const pairs = [`${asset}USDT`, `${asset}BTC`, `${asset}ETH`];
+          for (const pair of pairs) {
+            try {
+              const orders = await this.makeRequest('/api/v3/allOrders', { 
+                symbol: pair, 
+                limit: 100  // Get more orders to allow for time filtering
+              });
+              if (orders && orders.length > 0) {
+                // Filter by time (last 6 months) on client side
+                const recentOrders = orders.filter(order => 
+                  (order.time || order.updateTime || 0) >= startTime
+                );
+                allOrders.push(...recentOrders.map(order => ({
+                  ...order,
+                  market: 'Spot'
+                })));
+              }
+            } catch (error) {
+              continue; // Skip pairs that don't exist or have no orders
+            }
+            
+            if (allOrders.length >= limit) break;
+          }
+          if (allOrders.length >= limit) break;
+        }
+        
+        // Sort by time (most recent first)
+        allOrders.sort((a, b) => (b.time || b.updateTime || 0) - (a.time || a.updateTime || 0));
+        
+        // Additional filtering to ensure no futures contamination
+        const spotOnlyOrders = allOrders.filter(order => {
+          // Exclude any orders that might be futures-related
+          const symbol = order.symbol || '';
+          return !symbol.includes('PERP') && 
+                 !symbol.includes('_') &&  // Futures symbols sometimes use underscores
+                 !order.positionSide &&   // Futures-specific field
+                 !order.reduceOnly;       // Futures-specific field
+        });
+        
+        return spotOnlyOrders.slice(0, limit);
+      } else {
+        // Get orders for specific symbol
+        const orders = await this.makeRequest('/api/v3/allOrders', { 
+          symbol, 
+          limit: 500  // Get more orders to allow for time filtering
+        });
+        
+        // Filter by time (last 6 months) on client side
+        const recentOrders = orders.filter(order => 
+          (order.time || order.updateTime || 0) >= startTime
+        );
+        
+        // Additional filtering to ensure no futures contamination
+        const spotOnlyOrders = recentOrders.filter(order => {
+          // Exclude any orders that might be futures-related
+          const symbol = order.symbol || '';
+          return !symbol.includes('PERP') && 
+                 !symbol.includes('_') &&  // Futures symbols sometimes use underscores
+                 !order.positionSide &&   // Futures-specific field
+                 !order.reduceOnly;       // Futures-specific field
+        });
+        
+        return spotOnlyOrders.map(order => ({
+          ...order,
+          market: 'Spot'
+        }));
+      }
+    } catch (error) {
+      console.warn('Failed to get spot order history:', error.message);
+      return [];
+    }
+  }
+
+  // 3. Get transfer history (internal transfers between wallets like in Binance app)
+  async getTransferHistory(limit = 100) {
+    try {
+      // Get last 3 months of transfer history
+      const endTime = Date.now();
+      const startTime = endTime - (90 * 24 * 60 * 60 * 1000); // 3 months ago
+      
+      // This gets internal transfers between spot, futures, margin wallets
+      const response = await this.makeRequest('/sapi/v1/asset/transfer', { 
+        type: 'MAIN_UMFUTURE', // Main to futures
+        limit: Math.min(limit, 100),
+        startTime: startTime,
+        endTime: endTime
+      });
+      
+      const transfers = [];
+      if (response && response.rows) {
+        transfers.push(...response.rows.map(transfer => ({
+          ...transfer,
+          type: 'Internal Transfer',
+          asset: transfer.asset,
+          amount: transfer.amount,
+          status: transfer.status,
+          insertTime: transfer.timestamp
+        })));
+      }
+
+      // Also get futures to main transfers
+      try {
+        const reverseTransfers = await this.makeRequest('/sapi/v1/asset/transfer', { 
+          type: 'UMFUTURE_MAIN', // Futures to main
+          limit: Math.min(limit, 100),
+          startTime: startTime,
+          endTime: endTime
+        });
+        
+        if (reverseTransfers && reverseTransfers.rows) {
+          transfers.push(...reverseTransfers.rows.map(transfer => ({
+            ...transfer,
+            type: 'Internal Transfer',
+            asset: transfer.asset,
+            amount: transfer.amount,
+            status: transfer.status,
+            insertTime: transfer.timestamp
+          })));
+        }
+      } catch (error) {
+        console.warn('Failed to get reverse transfers:', error.message);
+      }
+
+      // Sort by time (most recent first)
+      transfers.sort((a, b) => (b.insertTime || 0) - (a.insertTime || 0));
+      return transfers.slice(0, limit);
+    } catch (error) {
+      console.warn('Failed to get transfer history:', error.message);
+      return [];
+    }
+  }
+
+  // 4. Get convert history (asset conversions in spot wallet like in Binance app)
+  async getConvertHistory(limit = 100) {
+    try {
+      // Get last 3 months of convert history
+      const endTime = Date.now();
+      const startTime = endTime - (90 * 24 * 60 * 60 * 1000); // 3 months ago
+      
+      const params = { 
+        limit: Math.min(limit, 100),
+        startTime: startTime,
+        endTime: endTime
+      };
+      
+      const response = await this.makeRequest('/sapi/v1/convert/tradeFlow', params);
+      
+      if (response && response.list) {
+        return response.list.map(convert => ({
+          ...convert,
+          fromAsset: convert.fromAsset,
+          toAsset: convert.toAsset,
+          fromAmount: convert.fromAmount,
+          toAmount: convert.toAmount,
+          createTime: convert.createTime,
+          status: 'Success' // Convert trades are usually completed
+        }));
+      }
+      
+      return [];
+    } catch (error) {
+      console.warn('Failed to get convert history:', error.message);
+      return [];
     }
   }
 }

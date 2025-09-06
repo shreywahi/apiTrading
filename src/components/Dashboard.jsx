@@ -31,6 +31,7 @@ const Dashboard = ({ binanceApi, onLogout }) => {
   const [hideSmallBalances, setHideSmallBalances] = useState(true);
   const [activeWalletTab, setActiveWalletTab] = useState('futures');
   const [activeFuturesTab, setActiveFuturesTab] = useState('open-orders');
+  const [activeSpotTab, setActiveSpotTab] = useState('open-orders');
   const [darkMode, setDarkMode] = useState(true);
   const [useOptimizedFetch, setUseOptimizedFetch] = useState(true);
   const [useUltraOptimization, setUseUltraOptimization] = useState(false);
@@ -68,6 +69,8 @@ const Dashboard = ({ binanceApi, onLogout }) => {
     tradeHistory,
     transactionHistory,
     fundingFeeHistory,
+    spotTransferHistory,
+    spotConvertHistory,
     loading,
     error,
     refreshing,
@@ -224,7 +227,7 @@ const Dashboard = ({ binanceApi, onLogout }) => {
           spotValue={spotValue}
           futuresValue={futuresValue}
           totalPnL={totalPnL}
-          openOrdersCount={openOrders.length}
+          openOrdersCount={openOrders.length + futuresOpenOrders.length}
           totalOrdersCount={orders.length + futuresOrderHistory.length}
           formatCurrency={formatCurrency}
           calculatePnL={() => calculatePnL(accountData)}
@@ -267,6 +270,12 @@ const Dashboard = ({ binanceApi, onLogout }) => {
           <OrdersSection 
             activeFuturesTab={activeFuturesTab}
             setActiveFuturesTab={setActiveFuturesTab}
+            activeSpotTab={activeSpotTab}
+            setActiveSpotTab={setActiveSpotTab}
+            spotOpenOrders={openOrders}
+            spotOrderHistory={orders}
+            spotTransferHistory={spotTransferHistory}
+            spotConvertHistory={spotConvertHistory}
             futuresOpenOrders={futuresOpenOrders}
             futuresOrderHistory={futuresOrderHistory}
             tradeHistory={tradeHistory}

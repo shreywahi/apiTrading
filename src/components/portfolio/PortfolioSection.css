@@ -161,7 +161,7 @@
 }
 
 .wallet-header span:first-child {
-  text-align: left; /* Keep asset name left-aligned for better readability */
+  text-align: center; /* Center align asset header like other columns */
 }
 
 .wallet-item {
@@ -186,7 +186,7 @@
 .asset-info {
   display: flex;
   flex-direction: column;
-  text-align: left; /* Keep asset info left-aligned */
+  text-align: center; /* Center align asset info like other columns */
 }
 
 .asset-symbol {
@@ -330,7 +330,7 @@
   
   .wallet-header span:first-child,
   .wallet-item .asset-info {
-    text-align: left; /* Keep asset names left-aligned */
+    text-align: center; /* Center align asset names like other columns */
   }
   
   .tab-header {
@@ -400,7 +400,7 @@
   
   .wallet-header span:first-child,
   .wallet-item .asset-info {
-    text-align: left; /* Keep asset names left-aligned */
+    text-align: center; /* Center align asset names like other columns */
   }
   
   .asset-symbol {

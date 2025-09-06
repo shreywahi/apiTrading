@@ -16,6 +16,10 @@ export const useDashboardData = (binanceApi) => {
   const [transactionHistory, setTransactionHistory] = useState([]);
   const [fundingFeeHistory, setFundingFeeHistory] = useState([]);
 
+  // Spot-specific data
+  const [spotTransferHistory, setSpotTransferHistory] = useState([]);
+  const [spotConvertHistory, setSpotConvertHistory] = useState([]);
+
   const fetchData = async (showRefreshIndicator = false) => {
     try {
       if (showRefreshIndicator) {
@@ -43,12 +47,14 @@ export const useDashboardData = (binanceApi) => {
       
       setAccountData(combinedAccountData);
 
-      // Fetch orders and futures data
+      // Fetch orders and futures data  
       try {
-        const [ordersResult, openOrdersResult, futuresDataResult] = await Promise.allSettled([
-          binanceApi.getAllOrders(null, 100),
-          binanceApi.getOpenOrders(),
-          binanceApi.getFuturesOrdersData()
+        const [ordersResult, openOrdersResult, futuresDataResult, transferHistoryResult, convertHistoryResult] = await Promise.allSettled([
+          binanceApi.getSpotOnlyOrderHistory(null, 100),
+          binanceApi.getSpotOnlyOpenOrders(),
+          binanceApi.getFuturesOrdersData(),
+          binanceApi.getTransferHistory(50),
+          binanceApi.getConvertHistory(50)
         ]);
 
         if (ordersResult.status === 'fulfilled') {
@@ -79,6 +85,14 @@ export const useDashboardData = (binanceApi) => {
           setTransactionHistory([]);
           setFundingFeeHistory([]);
         }
+
+        // Process spot-specific data
+        if (transferHistoryResult.status === 'fulfilled' && transferHistoryResult.value) {
+          setSpotTransferHistory(transferHistoryResult.value);
+        }
+        if (convertHistoryResult.status === 'fulfilled' && convertHistoryResult.value) {
+          setSpotConvertHistory(convertHistoryResult.value);
+        }
       } catch (err) {
         console.warn('Error fetching orders (non-critical):', err.message);
         setOrders([]);
@@ -89,6 +103,8 @@ export const useDashboardData = (binanceApi) => {
         setTradeHistory([]);
         setTransactionHistory([]);
         setFundingFeeHistory([]);
+        setSpotTransferHistory([]);
+        setSpotConvertHistory([]);
       }
     } catch (err) {
       setError(err.message);
@@ -171,6 +187,8 @@ export const useDashboardData = (binanceApi) => {
     tradeHistory,
     transactionHistory,
     fundingFeeHistory,
+    spotTransferHistory,
+    spotConvertHistory,
     
     // Loading states
     loading,

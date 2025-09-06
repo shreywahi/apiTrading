@@ -6,6 +6,12 @@ import './OrdersSection.css';
 const OrdersSection = ({ 
   activeFuturesTab,
   setActiveFuturesTab,
+  activeSpotTab,
+  setActiveSpotTab,
+  spotOpenOrders,
+  spotOrderHistory,
+  spotTransferHistory,
+  spotConvertHistory,
   futuresOpenOrders,
   futuresOrderHistory,
   tradeHistory,
@@ -21,6 +27,7 @@ const OrdersSection = ({
   const [closingOrders, setClosingOrders] = useState({});
   const [showRateLimitMessage, setShowRateLimitMessage] = useState(false);
   const [optimisticallyRemovedOrders, setOptimisticallyRemovedOrders] = useState(new Set());
+  const [activeMarket, setActiveMarket] = useState('spot'); // New state for market selection
 
   const handleCloseOrder = async (order) => {
     const orderId = order.orderId || order.id;
@@ -89,12 +96,16 @@ const OrdersSection = ({
   const filteredFuturesOpenOrders = (futuresOpenOrders || []).filter(order => 
     !optimisticallyRemovedOrders.has(order?.orderId || order?.id)
   );
+  
+  const filteredSpotOpenOrders = (spotOpenOrders || []).filter(order => 
+    !optimisticallyRemovedOrders.has(order?.orderId || order?.id)
+  );
 
   return (
     <section className="expanded-section orders-section">
       <div className="section-header">
-        <h2>Orders Management - USD-M Futures</h2>
-        <p className="section-description">Complete trading history from Binance USD-M Futures</p>
+        <h2>Orders Management</h2>
+        <p className="section-description">Complete trading history from Binance Spot and Futures markets</p>
         {showRateLimitMessage && (
           <div className="rate-limit-message">
             Rate limit protection active. Please wait 3 seconds between order cancellations to prevent API errors.
@@ -102,7 +113,141 @@ const OrdersSection = ({
         )}
       </div>
       <div className="section-content">
-        <div className="futures-tabs">
+        {/* Market Selector */}
+        <div className="market-selector">
+          <button 
+            className={`market-btn ${activeMarket === 'spot' ? 'active' : ''}`}
+            onClick={() => setActiveMarket('spot')}
+          >
+            Spot Market
+          </button>
+          <button 
+            className={`market-btn ${activeMarket === 'futures' ? 'active' : ''}`}
+            onClick={() => setActiveMarket('futures')}
+          >
+            USD-M Futures
+          </button>
+        </div>
+
+        {/* Spot Market Tabs */}
+        {activeMarket === 'spot' && (
+          <div className="spot-tabs">
+            <div className="tab-header">
+              <div className="spot-tab-buttons">
+                <button 
+                  className={`spot-tab-btn ${activeSpotTab === 'open-orders' ? 'active' : ''}`}
+                  onClick={() => setActiveSpotTab('open-orders')}
+                >
+                  <Activity size={16} />
+                  <span style={{ marginLeft: '0.5rem' }}>
+                    Open Orders ({filteredSpotOpenOrders.length})
+                  </span>
+                </button>
+                <button 
+                  className={`spot-tab-btn ${activeSpotTab === 'order-history' ? 'active' : ''}`}
+                  onClick={() => setActiveSpotTab('order-history')}
+                >
+                  <History size={16} />
+                  <span style={{ marginLeft: '0.5rem' }}>
+                    Order History ({(spotOrderHistory || []).length})
+                  </span>
+                </button>
+                <button 
+                  className={`spot-tab-btn ${activeSpotTab === 'transfer-history' ? 'active' : ''}`}
+                  onClick={() => setActiveSpotTab('transfer-history')}
+                >
+                  <ArrowUpDown size={16} />
+                  <span style={{ marginLeft: '0.5rem' }}>
+                    Transfer History ({(spotTransferHistory || []).length})
+                  </span>
+                </button>
+                <button 
+                  className={`spot-tab-btn ${activeSpotTab === 'convert-history' ? 'active' : ''}`}
+                  onClick={() => setActiveSpotTab('convert-history')}
+                >
+                  <Coins size={16} />
+                  <span style={{ marginLeft: '0.5rem' }}>
+                    Convert History ({(spotConvertHistory || []).length})
+                  </span>
+                </button>
+              </div>
+            </div>
+            <div className="spot-tab-content">
+              {activeSpotTab === 'open-orders' && (
+                <Fragment>
+                  {(() => {
+                    try {
+                      return (
+                        <SpotOpenOrdersTab 
+                          spotOpenOrders={filteredSpotOpenOrders}
+                          handleSort={handleSort}
+                          sortData={sortData}
+                          SortIndicator={SortIndicator}
+                          formatDate={formatDate}
+                          binanceApi={binanceApi}
+                          onOrderCancelled={onOrderCancelled}
+                          handleCloseOrder={handleCloseOrder}
+                          closingOrders={closingOrders}
+                        />
+                      );
+                    } catch (error) {
+                      console.error('Error rendering SpotOpenOrdersTab:', error);
+                      return (
+                        <div className="error-message" style={{ 
+                          background: '#fee2e2', 
+                          border: '1px solid #fecaca', 
+                          padding: '1rem', 
+                          borderRadius: '8px',
+                          margin: '1rem 0' 
+                        }}>
+                          <h3 style={{ color: '#dc2626', marginTop: 0 }}>Error Loading Spot Open Orders</h3>
+                          <p>There was an error displaying the spot open orders. Please try refreshing the page.</p>
+                          <details style={{ marginTop: '0.5rem' }}>
+                            <summary>Error Details</summary>
+                            <pre style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>
+                              {error.toString()}
+                            </pre>
+                          </details>
+                        </div>
+                      );
+                    }
+                  })()}
+                </Fragment>
+              )}
+              {activeSpotTab === 'order-history' && (
+                <SpotOrderHistoryTab 
+                  spotOrderHistory={spotOrderHistory}
+                  handleSort={handleSort}
+                  sortData={sortData}
+                  SortIndicator={SortIndicator}
+                  formatDate={formatDate}
+                />
+              )}
+              {activeSpotTab === 'transfer-history' && (
+                <SpotTransferHistoryTab 
+                  transactionHistory={spotTransferHistory || []}
+                  handleSort={handleSort}
+                  sortData={sortData}
+                  SortIndicator={SortIndicator}
+                  formatDate={formatDate}
+                />
+              )}
+              {activeSpotTab === 'convert-history' && (
+                <SpotConvertHistoryTab 
+                  convertHistory={spotConvertHistory || []}
+                  handleSort={handleSort}
+                  sortData={sortData}
+                  SortIndicator={SortIndicator}
+                  formatDate={formatDate}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Futures Market Tabs */}
+        {activeMarket === 'futures' && (
+          <div className="futures-tabs">
           <div className="tab-header">
             <div className="futures-tab-buttons">
               <button 
@@ -232,6 +377,7 @@ const OrdersSection = ({
             )}
           </div>
         </div>
+        )}
       </div>
     </section>
   );
@@ -272,7 +418,7 @@ const OpenOrdersTab = ({ futuresOpenOrders, handleSort, sortData, SortIndicator,
             <th onClick={() => handleSort && handleSort('open-orders', 'time')}>
               Time <SortIndicator tableType="open-orders" column="time" />
             </th>
-            <th onClick={() => handleSort && handleSort('open-orders', 'symbol')}>
+            <th onClick={() => handleSort && handleSort('open-orders', 'symbol')} className="symbol-header">
               Symbol <SortIndicator tableType="open-orders" column="symbol" />
             </th>
             <th onClick={() => handleSort && handleSort('open-orders', 'type')}>
@@ -389,7 +535,7 @@ const OrderHistoryTab = ({ futuresOrderHistory, handleSort, sortData, SortIndica
             <th onClick={() => handleSort && handleSort('order-history', 'time')}>
               Time <SortIndicator tableType="order-history" column="time" />
             </th>
-            <th onClick={() => handleSort && handleSort('order-history', 'symbol')}>
+            <th onClick={() => handleSort && handleSort('order-history', 'symbol')} className="symbol-header">
               Symbol <SortIndicator tableType="order-history" column="symbol" />
             </th>
             <th onClick={() => handleSort && handleSort('order-history', 'type')}>
@@ -476,7 +622,7 @@ const TradeHistoryTab = ({ tradeHistory, handleSort, sortData, SortIndicator, fo
             <th onClick={() => handleSort && handleSort('trade-history', 'time')}>
               Time <SortIndicator tableType="trade-history" column="time" />
             </th>
-            <th onClick={() => handleSort && handleSort('trade-history', 'symbol')}>
+            <th onClick={() => handleSort && handleSort('trade-history', 'symbol')} className="symbol-header">
               Symbol <SortIndicator tableType="trade-history" column="symbol" />
             </th>
             <th onClick={() => handleSort && handleSort('trade-history', 'side')}>
@@ -589,7 +735,7 @@ const TransactionHistoryTab = ({ transactionHistory, handleSort, sortData, SortI
             }
 
             return (
-              <tr key={transaction.tranId || `transaction-${index}`}>
+              <tr key={`transaction-${index}-${transaction.time || Date.now()}`}>
                 <td>{formatDate ? formatDate(transaction.time) : 'N/A'}</td>
                 <td className="symbol-cell">{transaction.symbol || '-'}</td>
                 <td>
@@ -668,8 +814,11 @@ const FundingHistoryTab = ({ fundingFeeHistory, handleSort, sortData, SortIndica
               return null;
             }
 
+            // Create a unique key combining multiple properties
+            const uniqueKey = `funding-${funding.tranId || index}-${funding.time || Date.now()}-${funding.symbol || 'unknown'}-${index}`;
+
             return (
-              <tr key={funding.tranId || `funding-${index}`}>
+              <tr key={uniqueKey}>
                 <td>{formatDate ? formatDate(funding.time) : 'N/A'}</td>
                 <td className="symbol-cell">{funding.symbol || 'N/A'}</td>
                 <td className={`number-cell ${parseFloat(funding.income || 0) >= 0 ? 'positive' : 'negative'}`}>
@@ -685,6 +834,310 @@ const FundingHistoryTab = ({ fundingFeeHistory, handleSort, sortData, SortIndica
               </td>
             </tr>
           )}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+// Spot market components
+const SpotOpenOrdersTab = ({ spotOpenOrders, handleSort, sortData, SortIndicator, formatDate, binanceApi, onOrderCancelled, handleCloseOrder, closingOrders }) => {
+  // Safety check for props
+  if (!spotOpenOrders || !Array.isArray(spotOpenOrders)) {
+    return (
+      <div className="no-data">
+        <p>Loading spot open orders...</p>
+      </div>
+    );
+  }
+
+  if (spotOpenOrders.length === 0) {
+    return (
+      <div className="no-data">
+        <p>No open spot orders found.</p>
+      </div>
+    );
+  }
+
+  const sortedOrders = sortData(spotOpenOrders, 'open-orders');
+
+  return (
+    <div className="table-container">
+      <table className="futures-table">
+        <thead>
+          <tr>
+            <th onClick={() => handleSort('open-orders', 'time')} className="sortable">
+              Time <SortIndicator tableType="open-orders" column="time" />
+            </th>
+            <th onClick={() => handleSort('open-orders', 'symbol')} className="sortable symbol-header">
+              Symbol <SortIndicator tableType="open-orders" column="symbol" />
+            </th>
+            <th onClick={() => handleSort('open-orders', 'type')} className="sortable">
+              Type <SortIndicator tableType="open-orders" column="type" />
+            </th>
+            <th onClick={() => handleSort('open-orders', 'side')} className="sortable">
+              Side <SortIndicator tableType="open-orders" column="side" />
+            </th>
+            <th onClick={() => handleSort('open-orders', 'origQty')} className="sortable">
+              Amount <SortIndicator tableType="open-orders" column="origQty" />
+            </th>
+            <th onClick={() => handleSort('open-orders', 'price')} className="sortable">
+              Price <SortIndicator tableType="open-orders" column="price" />
+            </th>
+            <th onClick={() => handleSort('open-orders', 'status')} className="sortable">
+              Status <SortIndicator tableType="open-orders" column="status" />
+            </th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedOrders.map((order) => (
+            <tr key={order.orderId || order.id}>
+              <td>{formatDate(order.time)}</td>
+              <td className="symbol-cell">{order.symbol}</td>
+              <td>
+                <span className={`order-type ${order.type?.toLowerCase()}`}>
+                  {order.type}
+                </span>
+              </td>
+              <td>
+                <span className={`side-badge ${order.side?.toLowerCase()}`}>
+                  {order.side}
+                </span>
+              </td>
+              <td className="number-cell">
+                {parseFloat(order.origQty).toFixed(6)}
+              </td>
+              <td className="number-cell">
+                {order.price && parseFloat(order.price) > 0 ? 
+                  `$${parseFloat(order.price).toLocaleString()}` : 
+                  'Market'
+                }
+              </td>
+              <td>
+                <OrderStatusBadge status={order.status} />
+              </td>
+              <td>
+                <button
+                  className={`close-order-btn ${closingOrders[order.orderId] ? 'cancelling' : ''}`}
+                  onClick={() => handleCloseOrder({ ...order, isFutures: false })}
+                  disabled={closingOrders[order.orderId]}
+                  title="Cancel this order"
+                >
+                  <X size={14} />
+                  {closingOrders[order.orderId] ? 'Cancelling...' : 'Cancel'}
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+const SpotOrderHistoryTab = ({ spotOrderHistory, handleSort, sortData, SortIndicator, formatDate }) => {
+  // Safety check for props
+  if (!spotOrderHistory || !Array.isArray(spotOrderHistory)) {
+    return (
+      <div className="no-data">
+        <p>Loading spot order history...</p>
+      </div>
+    );
+  }
+
+  if (spotOrderHistory.length === 0) {
+    return (
+      <div className="no-data">
+        <p>No spot order history found.</p>
+      </div>
+    );
+  }
+
+  const sortedOrders = sortData(spotOrderHistory, 'order-history');
+
+  return (
+    <div className="table-container">
+      <table className="futures-table">
+        <thead>
+          <tr>
+            <th onClick={() => handleSort('order-history', 'time')} className="sortable">
+              Time <SortIndicator tableType="order-history" column="time" />
+            </th>
+            <th onClick={() => handleSort('order-history', 'symbol')} className="sortable symbol-header">
+              Symbol <SortIndicator tableType="order-history" column="symbol" />
+            </th>
+            <th onClick={() => handleSort('order-history', 'type')} className="sortable">
+              Type <SortIndicator tableType="order-history" column="type" />
+            </th>
+            <th onClick={() => handleSort('order-history', 'side')} className="sortable">
+              Side <SortIndicator tableType="order-history" column="side" />
+            </th>
+            <th onClick={() => handleSort('order-history', 'origQty')} className="sortable">
+              Amount <SortIndicator tableType="order-history" column="origQty" />
+            </th>
+            <th onClick={() => handleSort('order-history', 'price')} className="sortable">
+              Price <SortIndicator tableType="order-history" column="price" />
+            </th>
+            <th onClick={() => handleSort('order-history', 'status')} className="sortable">
+              Status <SortIndicator tableType="order-history" column="status" />
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedOrders.map((order) => (
+            <tr key={order.orderId || order.id}>
+              <td>{formatDate(order.time)}</td>
+              <td className="symbol-cell">{order.symbol}</td>
+              <td>
+                <span className={`order-type ${order.type?.toLowerCase()}`}>
+                  {order.type}
+                </span>
+              </td>
+              <td>
+                <span className={`side-badge ${order.side?.toLowerCase()}`}>
+                  {order.side}
+                </span>
+              </td>
+              <td className="number-cell">
+                {parseFloat(order.origQty).toFixed(6)}
+              </td>
+              <td className="number-cell">
+                {order.price && parseFloat(order.price) > 0 ? 
+                  `$${parseFloat(order.price).toLocaleString()}` : 
+                  'Market'
+                }
+              </td>
+              <td>
+                <OrderStatusBadge status={order.status} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+const SpotTransferHistoryTab = ({ transactionHistory, handleSort, sortData, SortIndicator, formatDate }) => {
+  // Safety check for props
+  if (!transactionHistory || !Array.isArray(transactionHistory)) {
+    return (
+      <div className="no-data">
+        <p>Loading transfer history...</p>
+      </div>
+    );
+  }
+
+  if (transactionHistory.length === 0) {
+    return (
+      <div className="no-data">
+        <p>No transfer history found.</p>
+      </div>
+    );
+  }
+
+  const sortedTransactions = sortData(transactionHistory, 'transaction-history');
+
+  return (
+    <div className="table-container">
+      <table className="futures-table">
+        <thead>
+          <tr>
+            <th onClick={() => handleSort('transaction-history', 'insertTime')} className="sortable">
+              Time <SortIndicator tableType="transaction-history" column="insertTime" />
+            </th>
+            <th onClick={() => handleSort('transaction-history', 'asset')} className="sortable">
+              Asset <SortIndicator tableType="transaction-history" column="asset" />
+            </th>
+            <th onClick={() => handleSort('transaction-history', 'type')} className="sortable">
+              Type <SortIndicator tableType="transaction-history" column="type" />
+            </th>
+            <th onClick={() => handleSort('transaction-history', 'amount')} className="sortable">
+              Amount <SortIndicator tableType="transaction-history" column="amount" />
+            </th>
+            <th onClick={() => handleSort('transaction-history', 'status')} className="sortable">
+              Status <SortIndicator tableType="transaction-history" column="status" />
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedTransactions.map((transaction, index) => (
+            <tr key={transaction.id || index}>
+              <td>{formatDate(transaction.insertTime)}</td>
+              <td className="symbol-cell">{transaction.asset}</td>
+              <td>
+                <span className={`order-type ${transaction.type?.toLowerCase()}`}>
+                  {transaction.type}
+                </span>
+              </td>
+              <td className="number-cell">
+                {parseFloat(transaction.amount).toFixed(6)}
+              </td>
+              <td>
+                <OrderStatusBadge status={transaction.status} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+const SpotConvertHistoryTab = ({ convertHistory, handleSort, sortData, SortIndicator, formatDate }) => {
+  // Safety check for props
+  if (!convertHistory || !Array.isArray(convertHistory)) {
+    return (
+      <div className="no-data">
+        <p>Loading convert history...</p>
+      </div>
+    );
+  }
+
+  if (convertHistory.length === 0) {
+    return (
+      <div className="no-data">
+        <p>No convert history found.</p>
+        <p>This will show your Binance Convert trading history when available.</p>
+      </div>
+    );
+  }
+
+  const sortedConvertHistory = sortData(convertHistory, 'convert-history');
+
+  return (
+    <div className="table-container">
+      <table className="futures-table">
+        <thead>
+          <tr>
+            <th onClick={() => handleSort('convert-history', 'createTime')} className="sortable">
+              Time <SortIndicator tableType="convert-history" column="createTime" />
+            </th>
+            <th onClick={() => handleSort('convert-history', 'fromAsset')} className="sortable">
+              From Asset <SortIndicator tableType="convert-history" column="fromAsset" />
+            </th>
+            <th onClick={() => handleSort('convert-history', 'toAsset')} className="sortable">
+              To Asset <SortIndicator tableType="convert-history" column="toAsset" />
+            </th>
+            <th onClick={() => handleSort('convert-history', 'fromAmount')} className="sortable">
+              From Amount <SortIndicator tableType="convert-history" column="fromAmount" />
+            </th>
+            <th onClick={() => handleSort('convert-history', 'toAmount')} className="sortable">
+              To Amount <SortIndicator tableType="convert-history" column="toAmount" />
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedConvertHistory.map((convert, index) => (
+            <tr key={index}>
+              <td>{formatDate(convert.createTime || Date.now())}</td>
+              <td className="symbol-cell">{convert.fromAsset || 'N/A'}</td>
+              <td className="symbol-cell">{convert.toAsset || 'N/A'}</td>
+              <td className="number-cell">{parseFloat(convert.fromAmount || 0).toFixed(6)}</td>
+              <td className="number-cell">{parseFloat(convert.toAmount || 0).toFixed(6)}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>

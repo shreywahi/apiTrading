@@ -7,7 +7,9 @@ export const useSorting = () => {
     'position-history': { key: null, direction: 'default' },
     'trade-history': { key: null, direction: 'default' },
     'transaction-history': { key: null, direction: 'default' },
-    'funding-fee': { key: null, direction: 'default' }
+    'funding-fee': { key: null, direction: 'default' },
+    'transfer-history': { key: null, direction: 'default' },
+    'convert-history': { key: null, direction: 'default' }
   });
 
   const handleSort = (tableType, key) => {
@@ -33,14 +35,14 @@ export const useSorting = () => {
   const sortData = (data, tableType) => {
     const config = sortConfig[tableType];
     
-    const isOrdersTable = ['open-orders', 'order-history', 'trade-history', 'transaction-history', 'funding-fee'].includes(tableType);
+    const isOrdersTable = ['open-orders', 'order-history', 'trade-history', 'transaction-history', 'funding-fee', 'transfer-history', 'convert-history'].includes(tableType);
     const isPositionTable = tableType === 'position-history';
     
     if (!config.key || config.direction === 'default') {
       if (isOrdersTable || isPositionTable) {
         return [...data].sort((a, b) => {
-          const aTime = a.time || a.updateTime || 0;
-          const bTime = b.time || b.updateTime || 0;
+          const aTime = a.time || a.updateTime || a.createTime || a.insertTime || 0;
+          const bTime = b.time || b.updateTime || b.createTime || b.insertTime || 0;
           return bTime - aTime;
         });
       }

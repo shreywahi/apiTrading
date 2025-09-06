@@ -1,5 +1,43 @@
 /* Orders Section inherits styles from expanded-section */
 
+/* Market selector */
+.market-selector {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  justify-content: center;
+}
+
+.market-btn {
+  padding: 0.75rem 1.5rem;
+  border: 2px solid #4a5568;
+  background: linear-gradient(135deg, #2d3748, #4a5568);
+  color: #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  min-width: 120px;
+}
+
+.market-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(135deg, #4a5568, #5a6782);
+}
+
+.market-btn.active {
+  background: linear-gradient(135deg, #3182ce, #4299e1);
+  border-color: #3182ce;
+  color: white;
+  box-shadow: 0 4px 12px rgba(49, 130, 206, 0.3);
+}
+
+.market-btn.active:hover {
+  background: linear-gradient(135deg, #2c5aa0, #3182ce);
+}
+
 /* Rate limit and informational messages */
 .rate-limit-message {
   background: linear-gradient(135deg, #fff3cd, #ffeaa7);
@@ -64,6 +102,136 @@
 .optimistic-update-message::before {
   content: '🎯';
   margin-right: 8px;
+}
+
+/* Spot Market Styling - matching futures styling */
+.spot-tabs {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.spot-tab-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.spot-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  color: #718096;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.spot-tab-btn.active {
+  background: linear-gradient(135deg, #38a169, #48bb78);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(56, 161, 105, 0.3);
+}
+
+.spot-tab-btn:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #2d3748;
+  transform: translateY(-1px);
+}
+
+.spot-tab-content {
+  padding: 1.5rem;
+}
+
+.spot-table-container {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.spot-table-container h3 {
+  color: #2d3748;
+  margin-bottom: 0.5rem;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.spot-description {
+  color: #718096;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.spot-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.spot-table th {
+  background: rgba(56, 161, 105, 0.1);
+  color: #4a5568;
+  padding: 1rem 0.75rem;
+  text-align: center !important; /* Force center align headers */
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  white-space: nowrap;
+}
+
+.spot-table th:first-child {
+  text-align: left !important; /* Keep symbol column left-aligned */
+}
+
+.spot-table th.sortable {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  user-select: none;
+  position: relative;
+}
+
+.spot-table th.sortable:hover {
+  background: rgba(56, 161, 105, 0.2);
+  color: #2d3748;
+}
+
+.spot-table td {
+  padding: 1rem 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: #4a5568;
+  font-weight: 600;
+  vertical-align: middle;
+  font-size: 0.9rem;
+  text-align: center !important; /* Force center align all data */
+}
+
+.spot-table td:first-child {
+  text-align: left !important; /* Keep symbol column left-aligned */
+}
+
+.spot-table tr:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.spot-table tr:last-child td {
+  border-bottom: none;
 }
 
 .futures-tabs {
@@ -157,8 +325,14 @@
   white-space: nowrap;
 }
 
+/* Symbol column headers should be left-aligned */
+.futures-table th.symbol-header {
+  text-align: center !important;
+}
+
+/* Ensure TIME header is center-aligned */
 .futures-table th:first-child {
-  text-align: left !important; /* Keep symbol column left-aligned */
+  text-align: center !important;
 }
 
 .futures-table th.sortable {
@@ -184,7 +358,28 @@
 }
 
 .futures-table td:first-child {
-  text-align: left !important; /* Keep symbol column left-aligned */
+  text-align: center !important; /* Center align time column when it's first */
+}
+
+/* Symbol cell styling */
+.symbol-cell {
+  text-align: left !important; /* Keep symbol columns left-aligned */
+  font-weight: 700;
+  color: #2d3748;
+  font-family: 'Courier New', monospace;
+  font-size: 0.95rem;
+}
+
+/* Number cell styling */
+.number-cell {
+  text-align: center !important;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+}
+
+/* Action cell styling */
+.futures-table td:last-child {
+  text-align: center !important; /* Ensure action column is centered */
 }
 
 .futures-table tr:hover {
@@ -341,6 +536,40 @@
   
   .futures-table th:first-child,
   .futures-table td:first-child {
+    text-align: center !important;
+  }
+
+  /* Spot table responsive styling */
+  .spot-tab-buttons {
+    flex-direction: column;
+    padding: 0.75rem 1rem;
+    gap: 0.25rem;
+  }
+  
+  .spot-tab-btn {
+    justify-content: center;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.8rem;
+  }
+  
+  .spot-table-container {
+    overflow-x: auto;
+    padding: 1rem;
+  }
+  
+  .spot-table {
+    min-width: 800px;
+  }
+  
+  .spot-table th,
+  .spot-table td {
+    padding: 0.75rem 0.5rem;
+    font-size: 0.8rem;
+    text-align: center !important; /* Maintain center alignment on mobile */
+  }
+  
+  .spot-table th:first-child,
+  .spot-table td:first-child {
     text-align: left !important; /* Keep symbol column left-aligned */
   }
 }
@@ -376,6 +605,31 @@
     font-size: 0.7rem;
     padding: 0.4rem;
   }
+
+  /* Spot table mobile styling */
+  .spot-tab-buttons {
+    padding: 0.5rem 0.75rem;
+    gap: 0.2rem;
+  }
+  
+  .spot-tab-btn {
+    padding: 0.5rem 0.6rem;
+    font-size: 0.75rem;
+  }
+  
+  .spot-table-container {
+    padding: 0.75rem;
+  }
+  
+  .spot-table {
+    min-width: 700px;
+  }
+  
+  .spot-table th,
+  .spot-table td {
+    padding: 0.5rem 0.3rem;
+    font-size: 0.7rem;
+  }
 }
 
 @media (max-width: 360px) {
@@ -408,6 +662,30 @@
     font-size: 0.65rem;
     padding: 0.3rem;
   }
+
+  /* Spot table smallest screen styling */
+  .spot-tab-buttons {
+    padding: 0.4rem 0.5rem;
+  }
+  
+  .spot-tab-btn {
+    padding: 0.4rem 0.5rem;
+    font-size: 0.7rem;
+  }
+  
+  .spot-table-container {
+    padding: 0.5rem;
+  }
+  
+  .spot-table {
+    min-width: 650px;
+  }
+  
+  .spot-table th,
+  .spot-table td {
+    padding: 0.4rem 0.25rem;
+    font-size: 0.65rem;
+  }
 }
 
 /* Dark mode adjustments */
@@ -435,12 +713,33 @@
   color: #e2e8f0;
 }
 
+/* Dark mode adjustments for spot tables */
+.dark-mode .spot-table-container h3 {
+  color: #e2e8f0;
+}
+
+.dark-mode .spot-table th {
+  color: #cbd5e0;
+}
+
+.dark-mode .spot-table th.sortable:hover {
+  color: #f7fafc;
+}
+
+.dark-mode .spot-table td {
+  color: #cbd5e0;
+}
+
+.dark-mode .spot-tab-btn:hover:not(.active) {
+  color: #e2e8f0;
+}
+
 /* Close Order Button Styles */
 .close-order-btn {
   background: linear-gradient(135deg, #dc3545, #c82333);
   color: white;
   border: none;
-  padding: 0.5rem;
+  padding: 0.5rem 0.75rem;
   border-radius: 6px;
   font-size: 0.75rem;
   font-weight: 600;
@@ -451,8 +750,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 36px;
-  height: 36px;
+  gap: 0.25rem;
+  min-width: 80px;
+  height: 32px;
+  margin: 0 auto; /* Center the button in its cell */
 }
 
 .close-order-btn:hover {

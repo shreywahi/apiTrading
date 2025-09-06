@@ -45,6 +45,7 @@
   background: rgba(255, 255, 255, 0.05);
   border-radius: 12px;
   padding: 1.5rem;
+  padding-top: 0rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -148,12 +149,23 @@
 }
 
 .profit {
-  color: #38a169;
+  color: #38a169 !important;
   font-weight: 700;
 }
 
 .loss {
-  color: #e53e3e;
+  color: #e53e3e !important;
+  font-weight: 700;
+}
+
+/* Ensure table cell profit/loss colors have higher specificity */
+.futures-table td.profit {
+  color: #38a169 !important;
+  font-weight: 700;
+}
+
+.futures-table td.loss {
+  color: #e53e3e !important;
   font-weight: 700;
 }
 

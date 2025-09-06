@@ -66,7 +66,10 @@ const PortfolioSection = ({
                 >
                   {hideSmallBalances ? <Eye size={16} /> : <EyeOff size={16} />}
                   <span style={{ marginLeft: '0.5rem' }}>
-                    {hideSmallBalances ? 'Show All Assets' : 'Hide Small Assets'}
+                    {activeWalletTab === 'futures' 
+                      ? (hideSmallBalances ? 'Show Open Positions' : 'Hide Open Positions')
+                      : (hideSmallBalances ? 'Show All Assets' : 'Hide Small Assets')
+                    }
                   </span>
                 </button>
               </div>
@@ -206,8 +209,8 @@ const FuturesWallet = ({ futuresAccount, currentPrices, hideSmallBalances }) => 
           );
         })}
     
-      {/* Futures Positions */}
-      {futuresAccount?.positions
+      {/* Futures Positions - Only show when hideSmallBalances is false (Show Open Positions is active) */}
+      {!hideSmallBalances && futuresAccount?.positions
         ?.filter(pos => parseFloat(pos.positionAmt) !== 0)
         ?.map((position, index) => (
           <div key={`pos-${position.symbol}`} className="wallet-item futures-position">
