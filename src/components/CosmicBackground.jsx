@@ -1,5 +1,3 @@
-import React from 'react';
-
 // Animated cosmic background (stars + nebula) that sits behind all content
 // - Theme-aware (light/dark)
 // - Respects prefers-reduced-motion

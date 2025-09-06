@@ -1,4 +1,3 @@
-import React from 'react';
 import { getOrderStatusClass } from '../../utils/dashboardUtils';
 
 const OrderStatusBadge = ({ status }) => {

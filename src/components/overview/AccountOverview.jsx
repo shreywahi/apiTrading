@@ -1,4 +1,3 @@
-import React from 'react';
 import { DollarSign, TrendingUp, Activity, BarChart3 } from 'lucide-react';
 import './AccountOverview.css';
 

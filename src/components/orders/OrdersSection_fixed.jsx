@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Activity, History, TrendingUp, ArrowUpDown, Coins, X } from 'lucide-react';
 import OrderStatusBadge from '../common/OrderStatusBadge';
 import './OrdersSection.css';

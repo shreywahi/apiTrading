@@ -1,4 +1,3 @@
-import React from 'react';
 import { RefreshCw, LogOut } from 'lucide-react';
 import './ErrorDisplay.css';
 

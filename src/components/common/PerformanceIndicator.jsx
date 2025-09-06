@@ -1,5 +1,3 @@
-import React from 'react';
-
 const PerformanceIndicator = ({ loading, refreshing, accountData, className = '' }) => {
   if (!accountData) return null;
 

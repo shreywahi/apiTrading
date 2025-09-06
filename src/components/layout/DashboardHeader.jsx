@@ -1,4 +1,3 @@
-import React from 'react';
 import { RefreshCw, LogOut, Activity, Sun, Moon, Plus } from 'lucide-react';
 import './DashboardHeader.css';
 

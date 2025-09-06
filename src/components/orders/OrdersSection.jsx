@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, Fragment } from 'react';
 import { Activity, History, TrendingUp, ArrowUpDown, Coins, X } from 'lucide-react';
 import OrderStatusBadge from '../common/OrderStatusBadge';
 import './OrdersSection.css';
@@ -154,7 +154,7 @@ const OrdersSection = ({
           </div>
           <div className="futures-tab-content">
             {activeFuturesTab === 'open-orders' && (
-              <React.Fragment>
+              <Fragment>
                 {(() => {
                   try {
                     return (
@@ -192,7 +192,7 @@ const OrdersSection = ({
                     );
                   }
                 })()}
-              </React.Fragment>
+              </Fragment>
             )}
             {activeFuturesTab === 'order-history' && (
               <OrderHistoryTab 
