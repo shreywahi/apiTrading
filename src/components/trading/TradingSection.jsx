@@ -27,6 +27,8 @@ const TradingSection = ({
     !binanceApi.apiKey || 
     binanceApi.useMockData;
 
+  const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+
   // Debug logging
   useEffect(() => {
     // Remove debug logging
@@ -338,15 +340,17 @@ const TradingSection = ({
 
           {/* Market Selection */}
           <div className="market-tabs">
-            <button 
-              className={`tab-btn ${selectedMarket === 'spot' ? 'active' : ''}`}
-              onClick={() => {
-                setSelectedMarket('spot');
-                setMessage({ type: '', text: '' });
-              }}
-            >
-              Spot Trading
-            </button>
+            {isLocalhost && (
+              <button 
+                className={`tab-btn ${selectedMarket === 'spot' ? 'active' : ''}`}
+                onClick={() => {
+                  setSelectedMarket('spot');
+                  setMessage({ type: '', text: '' });
+                }}
+              >
+                Spot Trading
+              </button>
+            )}
             <button 
               className={`tab-btn ${selectedMarket === 'futures' ? 'active' : ''}`}
               onClick={() => {

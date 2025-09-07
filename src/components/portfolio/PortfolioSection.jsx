@@ -13,6 +13,7 @@ const PortfolioSection = ({
   setHideSmallBalances,
   formatCurrency
 }) => {
+  const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
   return (
     <section className="expanded-section portfolio-section">
       <div className="section-header">
@@ -25,12 +26,15 @@ const PortfolioSection = ({
             <div className="stat-item">
               <span className="label">Total Portfolio Value</span>
               <span className="value">{formatCurrency(totalValue)}</span>
-              <small className="sub-value">Spot + Futures + Unrealized P&L</small>
+              { isLocalhost && <small className="sub-value">Spot + Futures + Unrealized P&L</small> }
+              { !isLocalhost && <small className="sub-value">Futures + Unrealized P&L</small> }
             </div>
-            <div className="stat-item">
-              <span className="label">Spot Wallet</span>
-              <span className="value">{formatCurrency(spotValue)}</span>
-            </div>
+            { isLocalhost && (
+              <div className="stat-item">
+                <span className="label">Spot Wallet</span>
+                <span className="value">{formatCurrency(spotValue)}</span>
+              </div>
+            )}
             <div className="stat-item">
               <span className="label">Futures Wallet</span>
               <span className="value">{formatCurrency(futuresValue)}</span>
@@ -46,12 +50,14 @@ const PortfolioSection = ({
           <div className="wallet-tabs">
             <div className="tab-header">
               <div className="wallet-buttons">
-                <button 
-                  className={`tab-btn ${activeWalletTab === 'spot' ? 'active' : ''}`}
-                  onClick={() => setActiveWalletTab('spot')}
-                >
-                  Spot Wallet
-                </button>
+                { isLocalhost && (
+                  <button 
+                    className={`tab-btn ${activeWalletTab === 'spot' ? 'active' : ''}`}
+                    onClick={() => setActiveWalletTab('spot')}
+                  >
+                    Spot Wallet
+                  </button>
+                )}
                 <button 
                   className={`tab-btn ${activeWalletTab === 'futures' ? 'active' : ''}`}
                   onClick={() => setActiveWalletTab('futures')}

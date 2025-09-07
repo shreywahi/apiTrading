@@ -13,6 +13,7 @@ const PnLSection = ({
   sortData,
   SortIndicator 
 }) => {
+  const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
   return (
     <section className="expanded-section pnl-section">
       <div className="section-header">
@@ -31,12 +32,14 @@ const PnLSection = ({
 
           <div className="pnl-breakdown">
             <h4>P&L Breakdown</h4>
-            <div className="pnl-item">
-              <span>Spot Trading:</span>
-              <span className={spotValue >= 0 ? 'positive' : 'negative'}>
-                ${spotValue.toFixed(2)}
-              </span>
-            </div>
+            {isLocalhost && (
+              <div className="pnl-item">
+                <span>Spot Trading:</span>
+                <span className={spotValue >= 0 ? 'positive' : 'negative'}>
+                  ${spotValue.toFixed(2)}
+                </span>
+              </div>
+            )}
             <div className="pnl-item">
               <span>Futures Trading:</span>
               <span className={futuresValue >= 0 ? 'positive' : 'negative'}>

@@ -31,7 +31,8 @@ const AccountOverview = ({
   };
 
   const currencyIcon = getCurrencyIcon(displayCurrency);
-  
+  const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+
   return (
     <section className="overview-section">
       <div className="overview-grid">
@@ -46,9 +47,12 @@ const AccountOverview = ({
           <div className="card-content">
             <h3>Portfolio</h3>
             <p className="value">{formatCurrency(totalValue)}</p>
-            <small className="sub-value">
+            { isLocalhost && <small className="sub-value">
               Spot: {formatCurrency(spotValue)} | Futures: {formatCurrency(futuresValue)}
-            </small>
+            </small> }
+            { !isLocalhost && <small className="sub-value">
+              Futures: {formatCurrency(futuresValue)}
+            </small> }
           </div>
         </div>
         

@@ -28,6 +28,7 @@ const OrdersSection = ({
   const [showRateLimitMessage, setShowRateLimitMessage] = useState(false);
   const [optimisticallyRemovedOrders, setOptimisticallyRemovedOrders] = useState(new Set());
   const [activeMarket, setActiveMarket] = useState('futures'); // New state for market selection
+  const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
   const handleCloseOrder = async (order) => {
     const orderId = order.orderId || order.id;
@@ -115,12 +116,14 @@ const OrdersSection = ({
       <div className="section-content">
         {/* Market Selector */}
         <div className="market-selector">
-          <button 
-            className={`market-btn ${activeMarket === 'spot' ? 'active' : ''}`}
-            onClick={() => setActiveMarket('spot')}
-          >
-            Spot
-          </button>
+          { isLocalhost && (
+            <button 
+              className={`market-btn ${activeMarket === 'spot' ? 'active' : ''}`}
+              onClick={() => setActiveMarket('spot')}
+            >
+              Spot
+            </button>
+          )}
           <button 
             className={`market-btn ${activeMarket === 'futures' ? 'active' : ''}`}
             onClick={() => setActiveMarket('futures')}
