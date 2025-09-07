@@ -358,7 +358,7 @@ const TradingSection = ({
                 setMessage({ type: '', text: '' });
               }}
             >
-              Futures Trading
+              USD-M Futures
             </button>
             
             {/* Test Access Button - Show for both markets */}

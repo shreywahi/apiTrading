@@ -61,7 +61,7 @@ const AccountOverview = ({
             <TrendingUp size={24} />
           </div>
           <div className="card-content">
-            <h3>P&L {!hasFuturesData && <span style={{ fontSize: '0.7rem', color: '#888' }}>(Spot Only)</span>}</h3>
+            <h3>Profit & Loss {!hasFuturesData && <span style={{ fontSize: '0.7rem', color: '#888' }}>(Spot Only)</span>}</h3>
             <p className={`value ${totalPnL >= 0 ? 'positive' : 'negative'}`}>
               {totalPnL >= 0 ? '+' : ''}{formatCurrency(totalPnL)}
             </p>
@@ -91,7 +91,7 @@ const AccountOverview = ({
             <Activity size={24} />
           </div>
           <div className="card-content">
-            <h3>Orders Management</h3>
+            <h3>Order Management</h3>
             <p className="value">{openOrdersCount} open</p>
             <small className="sub-value">Active & Recent Orders</small>
           </div>
@@ -102,8 +102,9 @@ const AccountOverview = ({
             <BarChart3 size={24} />
           </div>
           <div className="card-content">
-            <h3>Trading Center</h3>
-            <p className="value">Spot & Futures</p>
+            <h3>Live Trading Center</h3>
+            { isLocalhost && <p className="value">Spot & USD-M Futures</p> }
+            { !isLocalhost && <p className="value">USD-M Futures</p> }
             <small className="sub-value">Place buy/sell orders</small>
           </div>
         </div>

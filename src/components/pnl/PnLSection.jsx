@@ -31,17 +31,17 @@ const PnLSection = ({
           )}
 
           <div className="pnl-breakdown">
-            <h4>P&L Breakdown</h4>
+            <h4>P&L and Balance Breakdown</h4>
             {isLocalhost && (
               <div className="pnl-item">
-                <span>Spot Trading:</span>
+                <span>Spot Balance:</span>
                 <span className={spotValue >= 0 ? 'positive' : 'negative'}>
                   ${spotValue.toFixed(2)}
                 </span>
               </div>
             )}
             <div className="pnl-item">
-              <span>Futures Trading:</span>
+              <span>USD-M Futures Balance:</span>
               <span className={futuresValue >= 0 ? 'positive' : 'negative'}>
                 ${futuresValue.toFixed(2)}
               </span>

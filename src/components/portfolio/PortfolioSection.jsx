@@ -62,7 +62,7 @@ const PortfolioSection = ({
                   className={`tab-btn ${activeWalletTab === 'futures' ? 'active' : ''}`}
                   onClick={() => setActiveWalletTab('futures')}
                 >
-                  Futures Wallet
+                  USD-M Futures Wallet
                 </button>
               </div>
               <div className="tab-controls">

@@ -106,7 +106,7 @@ const OrdersSection = ({
     <section className="expanded-section orders-section">
       <div className="section-header">
         <h2>Orders Management</h2>
-        <p className="section-description">Complete trading history from Binance Spot and Futures markets</p>
+        <p className="section-description">Complete trading history from Binance Spot and USD-M Futures markets</p>
         {showRateLimitMessage && (
           <div className="rate-limit-message">
             Rate limit protection active. Please wait 3 seconds between order cancellations to prevent API errors.
