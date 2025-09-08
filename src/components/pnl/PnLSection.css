@@ -272,10 +272,6 @@
     font-size: 1.2rem;
   }
   
-  .positions-table-container {
-    overflow-x: auto;
-  }
-  
   .futures-table {
     min-width: 700px;
   }

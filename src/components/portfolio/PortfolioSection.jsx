@@ -97,6 +97,11 @@ const PortfolioSection = ({
                   hideSmallBalances={hideSmallBalances}
                 />
               )}
+              {activeWalletTab === 'futures' && (
+                <FuturesSummary 
+                  futuresAccount={accountData?.futuresAccount}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -234,7 +239,13 @@ const FuturesWallet = ({ futuresAccount, currentPrices, hideSmallBalances }) => 
             </span>
           </div>
         ))}
-      
+    </div>
+  );
+};
+
+const FuturesSummary = ({ futuresAccount }) => {
+  return (
+    <div>
       {/* Futures Summary */}
       {futuresAccount && (
         <div className="futures-info">

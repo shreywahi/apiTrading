@@ -142,7 +142,9 @@
 
 .wallet-content {
   padding: 1.5rem;
-  overflow-x: auto; /* Allow horizontal scrolling on small screens */
+  overflow-x: auto; /* Allow horizontal scrolling on small screens */  
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .wallet-header {
