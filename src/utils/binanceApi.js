@@ -281,6 +281,7 @@ class BinanceAPI {
   async makeRequest(endpoint, options = {}) {
     try {
       const config = {
+        method: 'GET',
         ...options,
         headers: {
           ...options.headers,
@@ -291,23 +292,36 @@ class BinanceAPI {
       // Add timestamp and signature for authenticated requests
       if (endpoint.includes('/api/v3/') || endpoint.includes('/fapi/v1/')) {
         const timestamp = Date.now();
-        const queryString = this.buildQueryString({ ...options.params, timestamp });
-        const signature = this.createSignature(queryString);
-        
-        config.params = {
+        const queryParams = new URLSearchParams({
           ...options.params,
-          timestamp,
-          signature
-        };
+          timestamp: timestamp,
+          recvWindow: 60000
+        });
+        const queryString = queryParams.toString();
+        const signature = this.generateSignature(queryString);
+        
+        queryParams.append('signature', signature);
+        
+        config.params = {};
+        for (let [key, value] of queryParams) {
+          config.params[key] = value;
+        }
       }
 
-      const response = await this.axiosInstance.request({
+      // Use axios directly instead of undefined axiosInstance
+      const response = await axios.request({
         url: endpoint,
         ...config
       });
 
       return response.data;
     } catch (error) {
+      // Handle null or undefined errors
+      if (!error) {
+        console.warn('API Request failed with null error');
+        throw new Error('API Error: Network request failed');
+      }
+
       // Enhanced error handling with null checks
       let errorDetails;
       try {
@@ -403,7 +417,11 @@ class BinanceAPI {
     }
 
     // If all methods failed, throw the last error
-    this.handleApiError(lastError);
+    if (lastError) {
+      this.handleApiError(lastError);
+    } else {
+      throw new Error('All API endpoints failed');
+    }
   }
 
   // Helper method for futures API requests
@@ -442,7 +460,7 @@ class BinanceAPI {
     for (const baseUrl of endpointsToTry) {
       try {
         // For proxy endpoints, strip /fapi from the beginning of endpoint
-        // For direct endpoints, keep the full endpoint
+        // For direct endpoints, keep the full endpoint path
         let finalEndpoint = endpoint;
         
         const url = `${baseUrl}${finalEndpoint}`;
@@ -484,7 +502,11 @@ class BinanceAPI {
       console.error('  3. Proxy configuration issues');
     }
 
-    throw this.handleApiError(lastError);
+    if (lastError) {
+      throw this.handleApiError(lastError);
+    } else {
+      throw new Error('All futures API endpoints failed');
+    }
   }
 
   // Helper method for POST requests (orders, etc.)
@@ -543,7 +565,11 @@ class BinanceAPI {
       }
     }
 
-    throw this.handleApiError(lastError);
+    if (lastError) {
+      throw this.handleApiError(lastError);
+    } else {
+      throw new Error('All POST endpoints failed');
+    }
   }
 
   // Helper method for DELETE requests (cancel orders, etc.)
@@ -599,7 +625,11 @@ class BinanceAPI {
       }
     }
 
-    throw this.handleApiError(lastError);
+    if (lastError) {
+      throw this.handleApiError(lastError);
+    } else {
+      throw new Error('All DELETE endpoints failed');
+    }
   }
 
   /**
@@ -621,7 +651,7 @@ class BinanceAPI {
       if (!error.response) {
         console.warn('API Error: No response object in error', error);
         return {
-          status: error.status || 500,
+          status: error.status || error.code || 500,
           message: error.message || 'Network error occurred',
           data: error.data || null
         };
@@ -634,7 +664,7 @@ class BinanceAPI {
 
       try {
         data = error.response.data;
-        message = data?.msg || error.message || 'API request failed';
+        message = data?.msg || data?.message || error.response.statusText || error.message || 'API request failed';
       } catch (dataError) {
         console.warn('Error accessing response data:', dataError);
         message = error.message || 'API request failed';
@@ -1341,7 +1371,7 @@ class BinanceAPI {
         )
       );
       
-      uniqueOrders.sort((a, b) => (b.time || b.updateTime || 0) - (a.time || a.updateTime || 0));
+      uniqueOrders.sort((a, b) => (b.time || b.updateTime || 0) - (a.time || b.updateTime || 0));
       return uniqueOrders.slice(0, limit);
       
     } catch (error) {
@@ -1626,15 +1656,15 @@ class BinanceAPI {
     }
   }
 
-  // Get 24hr ticker price change statistics
-  async get24hrTicker(symbol = null) {
-    if (this.useMockData) {
-      return symbol ? 
-        { symbol, priceChange: "1234.56", priceChangePercent: "2.75" } :
-        [{ symbol: "BTCUSDC", priceChange: "1234.56", priceChangePercent: "2.75" }];
-    }
-
+  // Get 24h ticker price change statistics
+  async get24hTicker(symbol = null) {
     try {
+      if (this.useMockData) {
+        return symbol ? 
+          { symbol, priceChange: "1234.56", priceChangePercent: "2.75" } :
+          [{ symbol: "BTCUSDC", priceChange: "1234.56", priceChangePercent: "2.75" }];
+      }
+
       let endpoint = `/api/v3/ticker/24hr`;
       const params = {};
       if (symbol) {
@@ -1644,6 +1674,7 @@ class BinanceAPI {
       // Use public request method for ticker data
       return await this.makePublicRequest(endpoint, params);
     } catch (error) {
+      console.warn('Failed to get ticker data:', error.message);
       throw new Error(`Failed to get ticker data: ${error.response?.data?.msg || error.message}`);
     }
   }
@@ -1694,9 +1725,7 @@ class BinanceAPI {
   async getFuturesOpenOrders(symbol = null) {
     try {
       const params = {};
-      if (symbol) {
-        params.symbol = symbol;
-      }
+      if (symbol) params.symbol = symbol;
       const orders = await this.makeFuturesRequest('/fapi/v1/openOrders', 'GET', params);
       return orders.map(order => ({
         ...order,
@@ -2033,6 +2062,7 @@ class BinanceAPI {
   // Set leverage for futures trading
   async setLeverage(symbol, leverage) {
     if (this.useMockData) {
+
       return { leverage: leverage, maxNotional: '100000', symbol: symbol };
     }
 
@@ -2045,7 +2075,7 @@ class BinanceAPI {
       const response = await this.makePostRequest('/fapi/v1/leverage', params, true);
       return response;
     } catch (error) {
-      console.warn('Failed to set leverage:', error);
+      console.warn('Failed to set leverage:', error?.message || 'Unknown error');
       // Don't throw error as order can still proceed
       return null;
     }
