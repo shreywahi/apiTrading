@@ -132,11 +132,16 @@ export const useOptimizedDashboardData = (binanceApi) => {
 
       // Check cache for account data
       let spotAccount = null;
-      if (accountCache.current.data && (now - accountCache.current.timestamp) < accountCache.current.ttl) {
-        spotAccount = accountCache.current.data;
-      } else {
-        spotAccount = await Promise.resolve(binanceApi.makeRequest('/api/v3/account'));
-        accountCache.current = { data: spotAccount, timestamp: now };
+      try {
+        if (accountCache.current.data && (now - accountCache.current.timestamp) < accountCache.current.ttl) {
+          spotAccount = accountCache.current.data;
+        } else {
+          spotAccount = await Promise.resolve(binanceApi.makeRequest('/api/v3/account'));
+          accountCache.current = { data: spotAccount, timestamp: now };
+        }
+      } catch (accountError) {
+        console.warn('Account data fetch failed, using cached data:', accountError.message);
+        spotAccount = accountCache.current?.data || null;
       }
 
       // Check cache for orders - only fetch spot orders in localhost
@@ -160,7 +165,13 @@ export const useOptimizedDashboardData = (binanceApi) => {
       }
 
       // Only fetch futures if needed (reduce to 1-2 calls total)
-      const futuresAccount = await Promise.resolve(binanceApi.getFuturesAccountInfo());
+      let futuresAccount = null;
+      try {
+        futuresAccount = await Promise.resolve(binanceApi.getFuturesAccountInfo());
+      } catch (futuresError) {
+        console.warn('Futures account fetch failed:', futuresError.message);
+        futuresAccount = null;
+      }
 
       if (spotAccount) {
         const essentialAssets = getEssentialAssets(spotAccount.balances);
@@ -210,7 +221,8 @@ export const useOptimizedDashboardData = (binanceApi) => {
       console.error('Fast refresh failed:', error);
       // Set empty arrays on failure to prevent NaN
       setOpenOrders([]);
-      setError(error.message);
+      // Don't set error state for fast refresh failures to avoid UI disruption
+      // setError(error.message);
     } finally {
       setRefreshing(false);
     }

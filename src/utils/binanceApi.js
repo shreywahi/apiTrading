@@ -275,6 +275,54 @@ class BinanceAPI {
     throw new Error(`Public Futures API Error: ${lastError.message}`);
   }
 
+  /**
+   * Make authenticated API request with enhanced error handling
+   */
+  async makeRequest(endpoint, options = {}) {
+    try {
+      const config = {
+        ...options,
+        headers: {
+          ...options.headers,
+          'X-MBX-APIKEY': this.apiKey
+        }
+      };
+
+      // Add timestamp and signature for authenticated requests
+      if (endpoint.includes('/api/v3/') || endpoint.includes('/fapi/v1/')) {
+        const timestamp = Date.now();
+        const queryString = this.buildQueryString({ ...options.params, timestamp });
+        const signature = this.createSignature(queryString);
+        
+        config.params = {
+          ...options.params,
+          timestamp,
+          signature
+        };
+      }
+
+      const response = await this.axiosInstance.request({
+        url: endpoint,
+        ...config
+      });
+
+      return response.data;
+    } catch (error) {
+      // Enhanced error handling with null checks
+      const errorDetails = this.handleApiError(error);
+      
+      // Log the error for debugging
+      console.error('API Request failed:', {
+        endpoint,
+        error: errorDetails,
+        originalError: error ? error.message : 'Null error'
+      });
+
+      // Throw a structured error
+      throw new Error(`API Error: ${errorDetails.message}`);
+    }
+  }
+
   // Helper method to try multiple endpoints until one works
   async makeRequest(endpoint, params = {}) {
     // Return mock data if in demo mode
@@ -543,32 +591,42 @@ class BinanceAPI {
     throw this.handleApiError(lastError);
   }
 
+  /**
+   * Enhanced error handling for API requests
+   */
   handleApiError(error) {
-    console.error('API Error Details:', {
-      status: error.response?.status,
-      data: error.response?.data,
-      headers: error.response?.headers,
-      message: error.message
-    });
-    
-    if (error.response?.data?.msg) {
-      throw new Error(error.response.data.msg);
-    } else if (error.response?.status === 400) {
-      throw new Error('Invalid API request. Please check your API credentials and permissions.');
-    } else if (error.response?.status === 403) {
-      console.warn('⚠️ 403 Forbidden - This could indicate:');
-      console.warn('  - API key missing required permissions for futures trading');
-      console.warn('  - API key restrictions (IP whitelisting, etc.)');
-      console.warn('  - Local proxy authentication issues');
-      throw new Error('Access forbidden. Please ensure your API key has futures trading permissions and check IP restrictions.');
-    } else if (error.response?.status === 401) {
-      throw new Error('Unauthorized. Please check your API credentials.');
-    } else if (error.code === 'ECONNABORTED') {
-      throw new Error('Request timeout - please check your internet connection');
-    } else if (error.message.includes('Network Error')) {
-      throw new Error('CORS_ERROR');
+    // Handle null error objects
+    if (!error) {
+      console.warn('API Error: Null error object received');
+      return {
+        status: 500,
+        message: 'Unknown API error occurred',
+        data: null
+      };
     }
-    throw new Error(`API Error: ${error.message}`);
+
+    // Handle cases where error.response is null
+    if (!error.response) {
+      console.warn('API Error: No response object in error', error);
+      return {
+        status: error.status || 500,
+        message: error.message || 'Network error occurred',
+        data: error.data || null
+      };
+    }
+
+    // Normal error handling
+    const status = error.response.status;
+    const data = error.response.data;
+    const message = data?.msg || error.message || 'API request failed';
+
+    console.error(`API Error [${status}]:`, message);
+
+    return {
+      status,
+      message,
+      data
+    };
   }
 
   // Get comprehensive account information (spot + futures) using Binance's direct values
@@ -1545,7 +1603,7 @@ class BinanceAPI {
     if (this.useMockData) {
       return symbol ? 
         { symbol, priceChange: "1234.56", priceChangePercent: "2.75" } :
-        [{ symbol: "BTCUSDT", priceChange: "1234.56", priceChangePercent: "2.75" }];
+        [{ symbol: "BTCUSDC", priceChange: "1234.56", priceChangePercent: "2.75" }];
     }
 
     try {
@@ -2040,7 +2098,7 @@ class BinanceAPI {
       
       // Test 2: Check futures symbol availability 
       const symbols = await this.getSymbols('futures');
-      console.log('✅ Futures symbol access: OK');
+                     console.log('✅ Futures symbol access: OK');
       console.log('📈 Available futures symbols:', symbols.length);
       
       // Test 3: Check active positions

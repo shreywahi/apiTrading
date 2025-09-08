@@ -88,7 +88,15 @@ export class BinancePerformanceOptimizer {
         accountType: account.accountType
       };
     } catch (error) {
-      throw new Error(`Essential account info failed: ${error.message}`);
+      console.error('Essential account info failed:', error);
+      // Return safe defaults instead of throwing
+      return {
+        balances: [],
+        canTrade: false,
+        updateTime: Date.now(),
+        accountType: 'SPOT',
+        error: error.message
+      };
     }
   }
 
@@ -103,12 +111,19 @@ export class BinancePerformanceOptimizer {
       ]);
 
       return {
-        spot: spot.status === 'fulfilled' ? spot.value : null,
+        spot: spot.status === 'fulfilled' ? spot.value : { balances: [], canTrade: false },
         futures: futures.status === 'fulfilled' ? futures.value : null,
         timestamp: Date.now()
       };
     } catch (error) {
-      throw new Error(`Batched account data failed: ${error.message}`);
+      console.error('Batched account data failed:', error);
+      // Return safe defaults
+      return {
+        spot: { balances: [], canTrade: false },
+        futures: null,
+        timestamp: Date.now(),
+        error: error.message
+      };
     }
   }
 
@@ -164,16 +179,26 @@ export const extendBinanceApiWithOptimizations = (binanceApi) => {
         openOrdersPromise
       ]);
 
-      // Get prices only for assets with balances
-      const assets = account.status === 'fulfilled' && account.value ? 
-        account.value.balances.map(b => `${b.asset}USDT`).filter(s => !s.startsWith('USDT')) :
-        ['BTCUSDT', 'ETHUSDT'];
+      // Handle potential failures gracefully
+      const accountData = account.status === 'fulfilled' ? account.value : null;
+      const openOrdersData = openOrders.status === 'fulfilled' ? (openOrders.value || []) : [];
 
-      const prices = await this.getOptimizedPrices(assets.slice(0, 10)); // Limit to 10 most important
+      // Get prices only for assets with balances
+      let prices = {};
+      try {
+        const assets = accountData ? 
+          accountData.balances.map(b => `${b.asset}USDT`).filter(s => !s.startsWith('USDT')) :
+          ['BTCUSDT', 'ETHUSDT'];
+
+        prices = await this.getOptimizedPrices(assets.slice(0, 10)); // Limit to 10 most important
+      } catch (priceError) {
+        console.warn('Price fetch failed:', priceError.message);
+        prices = {};
+      }
 
       const result = {
-        account: account.status === 'fulfilled' ? account.value : null,
-        openOrders: openOrders.status === 'fulfilled' ? (openOrders.value || []) : [],
+        account: accountData,
+        openOrders: openOrdersData,
         prices,
         loadTime: Date.now() - startTime,
         optimized: true
