@@ -226,11 +226,15 @@ export const useOptimizedDashboardData = (binanceApi) => {
       let futuresAccount = null;
       try {
         console.log('Fetching futures account data...');
-        futuresAccount = await Promise.resolve(binanceApi.getFuturesAccountInfo());
+        if (binanceApi && binanceApi.apiKey && binanceApi.apiSecret && typeof binanceApi.getFuturesAccountInfo === 'function') {
+          futuresAccount = await Promise.resolve(binanceApi.getFuturesAccountInfo());
+        } else {
+          console.log('No futures credentials - skipping futures account fetch in production.');
+          futuresAccount = null;
+        }
         console.log('Futures account data fetched:', futuresAccount ? 'success' : 'null');
       } catch (futuresError) {
         console.warn('Futures account fetch failed:', futuresError?.message || 'Unknown error');
-        // If futures API fails, continue without futures data
         futuresAccount = null;
       }
 
@@ -306,9 +310,13 @@ export const useOptimizedDashboardData = (binanceApi) => {
         spotOrdersPromise = Promise.resolve([]);
       }
 
+      const futuresOrdersPromise = (binanceApi && binanceApi.apiKey && binanceApi.apiSecret && typeof binanceApi.getFuturesOrdersData === 'function')
+        ? binanceApi.getFuturesOrdersData()
+        : Promise.resolve({ openOrders: [], orderHistory: [], tradeHistory: [], transactionHistory: [], fundingFees: [] });
+      
       const [openOrdersResult, futuresDataResult] = await Promise.allSettled([
         spotOrdersPromise,
-        binanceApi.getFuturesOrdersData()
+        futuresOrdersPromise
       ]);
 
       // Update spot open orders
@@ -372,8 +380,14 @@ export const useOptimizedDashboardData = (binanceApi) => {
       }
 
       console.log('fullRefresh: Fetching futures data in production');
-      futuresOrdersPromise = binanceApi.getFuturesOrdersData();
-      futuresAccountPromise = binanceApi.getFuturesAccountInfo();
+      if (binanceApi && binanceApi.apiKey && binanceApi.apiSecret && typeof binanceApi.getFuturesOrdersData === 'function' && typeof binanceApi.getFuturesAccountInfo === 'function') {
+        futuresOrdersPromise = binanceApi.getFuturesOrdersData();
+        futuresAccountPromise = binanceApi.getFuturesAccountInfo();
+      } else {
+        console.log('fullRefresh: No futures credentials - using mock/fallback futures data');
+        futuresOrdersPromise = Promise.resolve({ openOrders: [], orderHistory: [], tradeHistory: [], transactionHistory: [], fundingFees: [] });
+        futuresAccountPromise = Promise.resolve(null);
+      }
 
       const [spotOrders, futuresOrders, spotAccount, futuresAccount] = await Promise.allSettled([
         spotOrdersPromise,
