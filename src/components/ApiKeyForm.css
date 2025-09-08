@@ -316,8 +316,9 @@
 @media (max-width: 480px) {
   .api-key-form-container {
     padding: 10px;
-    align-items: flex-start;
-    padding-top: 20px;
+    align-items: center;      /* Keep vertical centering */
+    min-height: 100vh;        /* Ensure full viewport height */
+    padding-top: 0;           /* Remove extra top padding */
   }
   
   .api-key-form {
