@@ -182,6 +182,66 @@ export const useDashboardData = (binanceApi) => {
     }
   }, [binanceApi]);
 
+  // Localhost vs PROD behavior
+  useEffect(() => {
+    const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+
+    const fetchDataForEnvironment = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Always fetch futures data in both localhost and PROD
+        const futuresData = await binanceApi.getFuturesOrdersData();
+        setFuturesOpenOrders(futuresData.openOrders || []);
+        setFuturesOrderHistory(futuresData.orderHistory || []);
+        setPositionHistory(futuresData.positions || []);
+
+        // Always fetch futures account info for P&L calculation
+        const futuresAccount = await binanceApi.getFuturesAccountInfo();
+        setAccountData(prev => ({
+          ...prev,
+          futures: futuresAccount
+        }));
+
+        if (isLocalhost) {
+          // Fetch spot data only in localhost
+          const spotOpenOrders = await binanceApi.getSpotOnlyOpenOrders();
+          const spotOrderHistory = await binanceApi.getSpotOnlyOrderHistory();
+          setOpenOrders(spotOpenOrders || []);
+          setOrders(spotOrderHistory || []);
+
+          // Fetch spot account info
+          const spotAccount = await binanceApi.makeRequest('/api/v3/account');
+          setAccountData(prev => ({
+            ...prev,
+            spot: spotAccount
+          }));
+        } else {
+          // In PROD, set spot data to empty/default
+          setOpenOrders([]);
+          setOrders([]);
+          // Keep existing accountData or set spot to null
+          setAccountData(prev => ({
+            ...prev,
+            spot: null
+          }));
+        }
+
+        // Calculate P&L using latest futures data (always available)
+        // ...existing code for P&L calculation...
+
+      } catch (err) {
+        setError(err.message);
+        console.error('Error fetching dashboard data:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchDataForEnvironment();
+  }, [binanceApi]);
+
   return {
     // Data states
     accountData,

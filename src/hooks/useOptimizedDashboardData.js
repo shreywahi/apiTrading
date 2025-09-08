@@ -36,6 +36,10 @@ export const useOptimizedDashboardData = (binanceApi) => {
   const lastFullFetch = useRef(0);
   const FULL_FETCH_INTERVAL = 300000; // 5 minutes between full fetches
 
+  // Add to existing refs
+  const accountCache = useRef({ data: null, timestamp: 0, ttl: 15000 }); // 15s cache for account data
+  const ordersCache = useRef({ data: null, timestamp: 0, ttl: 10000 }); // 10s cache for orders
+
   /**
    * Get essential assets from account balances to minimize price API calls
    */
@@ -123,21 +127,36 @@ export const useOptimizedDashboardData = (binanceApi) => {
   const fastRefresh = async () => {
     try {
       setRefreshing(true);
-      
-      // Fetch essential account data including futures for P&L calculations
-      const [spotAccount, futuresAccount, openOrdersData] = await Promise.allSettled([
-        binanceApi.makeRequest('/api/v3/account'),
-        binanceApi.getFuturesAccountInfo(), // Include futures for P&L
-        binanceApi.getSpotOnlyOpenOrders() // Use spot-only open orders
-      ]);
+      const now = Date.now();
 
-      if (spotAccount.status === 'fulfilled' && spotAccount.value) {
-        const essentialAssets = getEssentialAssets(spotAccount.value.balances);
+      // Check cache for account data
+      let spotAccount = null;
+      if (accountCache.current.data && (now - accountCache.current.timestamp) < accountCache.current.ttl) {
+        spotAccount = accountCache.current.data;
+      } else {
+        spotAccount = await Promise.resolve(binanceApi.makeRequest('/api/v3/account'));
+        accountCache.current = { data: spotAccount, timestamp: now };
+      }
+
+      // Check cache for orders
+      let openOrdersData = null;
+      if (ordersCache.current.data && (now - ordersCache.current.timestamp) < ordersCache.current.ttl) {
+        openOrdersData = ordersCache.current.data;
+      } else {
+        openOrdersData = await Promise.resolve(binanceApi.getSpotOnlyOpenOrders());
+        ordersCache.current = { data: openOrdersData, timestamp: now };
+      }
+
+      // Only fetch futures if needed (reduce to 1-2 calls total)
+      const futuresAccount = await Promise.resolve(binanceApi.getFuturesAccountInfo());
+
+      if (spotAccount) {
+        const essentialAssets = getEssentialAssets(spotAccount.balances);
         const priceMap = await fetchEssentialPrices(essentialAssets);
         
         // Recalculate spot wallet value
         let spotWalletValue = 0;
-        spotAccount.value.balances.forEach(balance => {
+        spotAccount.balances.forEach(balance => {
           const total = parseFloat(balance.free) + parseFloat(balance.locked);
           if (total > 0.001) {
             if (['USDT', 'BUSD', 'USDC', 'FDUSD'].includes(balance.asset)) {
@@ -149,7 +168,7 @@ export const useOptimizedDashboardData = (binanceApi) => {
         });
 
         // Get updated futures data for accurate P&L
-        const updatedFuturesData = futuresAccount.status === 'fulfilled' ? futuresAccount.value : accountData?.futures;
+        const updatedFuturesData = futuresAccount ? futuresAccount : accountData?.futures;
         const futuresWalletValue = updatedFuturesData ? parseFloat(updatedFuturesData.totalWalletBalance || 0) : 0;
         const totalPortfolioValue = spotWalletValue + futuresWalletValue;
         
@@ -165,19 +184,19 @@ export const useOptimizedDashboardData = (binanceApi) => {
               price: price.toString()
             }))
           },
-          spotAccount.value,
+          spotAccount,
           updatedFuturesData
         );
         
         setAccountData(updatedAccountData);
       }
 
-      if (openOrdersData.status === 'fulfilled') {
-        setOpenOrders(openOrdersData.value);
+      if (openOrdersData) {
+        setOpenOrders(openOrdersData);
       }
 
     } catch (error) {
-      console.error('Fast refresh failed:', error.message);
+      console.error('Fast refresh failed:', error);
       setError(error.message);
     } finally {
       setRefreshing(false);
@@ -233,11 +252,26 @@ export const useOptimizedDashboardData = (binanceApi) => {
       
       const startTime = Date.now();
 
-      // Phase 1: Critical data (parallel fetch)
-      const [spotAccount, futuresAccount] = await Promise.allSettled([
+      // Phase 1: Critical data (parallel fetch) - prioritize order history
+      const [spotOrders, futuresOrders, spotAccount, futuresAccount] = await Promise.allSettled([
+        binanceApi.getSpotOnlyOpenOrders(), // Fetch orders first
+        binanceApi.getFuturesOrdersData(), // Fetch futures orders first
         binanceApi.makeRequest('/api/v3/account'),
         binanceApi.getFuturesAccountInfo()
       ]);
+
+      // Update order data immediately after fetch
+      if (spotOrders.status === 'fulfilled') {
+        setOpenOrders(spotOrders.value);
+      }
+      if (futuresOrders.status === 'fulfilled') {
+        const futuresData = futuresOrders.value;
+        setFuturesOpenOrders(futuresData.openOrders || []);
+        setFuturesOrderHistory(futuresData.orderHistory || []);
+        setTradeHistory(futuresData.tradeHistory || []);
+        setTransactionHistory(futuresData.transactionHistory || []);
+        setFundingFeeHistory(futuresData.fundingFees || []);
+      }
 
       // Phase 2: Get essential prices based on actual balances
       let priceMap = {};
@@ -293,10 +327,8 @@ export const useOptimizedDashboardData = (binanceApi) => {
       setTimeout(async () => {
         try {
           if (isLocalhost) {
-            const [ordersResult, openOrdersResult, futuresDataResult, transferHistoryResult, convertHistoryResult] = await Promise.allSettled([
+            const [ordersResult, transferHistoryResult, convertHistoryResult] = await Promise.allSettled([
               binanceApi.getSpotOnlyOrderHistory(null, 50), // Use spot-only order history
-              binanceApi.getSpotOnlyOpenOrders(), // Use spot-only open orders
-              binanceApi.getFuturesOrdersData(),
               binanceApi.getTransferHistory(), // Add transfer history
               binanceApi.getConvertHistory() // Add convert history
             ]);
@@ -304,20 +336,6 @@ export const useOptimizedDashboardData = (binanceApi) => {
             // Update states as data comes in
             if (ordersResult.status === 'fulfilled') {
               setOrders(ordersResult.value.reverse());
-            }
-
-            if (openOrdersResult.status === 'fulfilled') {
-              setOpenOrders(openOrdersResult.value);
-            }
-
-            if (futuresDataResult.status === 'fulfilled') {
-              const futuresData = futuresDataResult.value;
-              setFuturesOpenOrders(futuresData.openOrders || []);
-              setFuturesOrderHistory(futuresData.orderHistory || []);
-              setPositionHistory(futuresData.positions || []);
-              setTradeHistory(futuresData.tradeHistory || []);
-              setTransactionHistory(futuresData.transactionHistory || []);
-              setFundingFeeHistory(futuresData.fundingFees || []);
             }
 
             // Process spot-specific data
