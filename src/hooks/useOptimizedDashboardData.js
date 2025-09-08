@@ -289,43 +289,45 @@ export const useOptimizedDashboardData = (binanceApi) => {
       setAccountData(coreAccountData);
 
       // Phase 4: Non-critical data (background fetch - don't block UI)
+      const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
       setTimeout(async () => {
         try {
-          const [ordersResult, openOrdersResult, futuresDataResult, transferHistoryResult, convertHistoryResult] = await Promise.allSettled([
-            binanceApi.getSpotOnlyOrderHistory(null, 50), // Use spot-only order history
-            binanceApi.getSpotOnlyOpenOrders(), // Use spot-only open orders
-            binanceApi.getFuturesOrdersData(),
-            binanceApi.getTransferHistory(), // Add transfer history
-            binanceApi.getConvertHistory() // Add convert history
-          ]);
+          if (isLocalhost) {
+            const [ordersResult, openOrdersResult, futuresDataResult, transferHistoryResult, convertHistoryResult] = await Promise.allSettled([
+              binanceApi.getSpotOnlyOrderHistory(null, 50), // Use spot-only order history
+              binanceApi.getSpotOnlyOpenOrders(), // Use spot-only open orders
+              binanceApi.getFuturesOrdersData(),
+              binanceApi.getTransferHistory(), // Add transfer history
+              binanceApi.getConvertHistory() // Add convert history
+            ]);
 
-          // Update states as data comes in
-          if (ordersResult.status === 'fulfilled') {
-            setOrders(ordersResult.value.reverse());
-          }
+            // Update states as data comes in
+            if (ordersResult.status === 'fulfilled') {
+              setOrders(ordersResult.value.reverse());
+            }
 
-          if (openOrdersResult.status === 'fulfilled') {
-            setOpenOrders(openOrdersResult.value);
-          }
+            if (openOrdersResult.status === 'fulfilled') {
+              setOpenOrders(openOrdersResult.value);
+            }
 
-          if (futuresDataResult.status === 'fulfilled') {
-            const futuresData = futuresDataResult.value;
-            setFuturesOpenOrders(futuresData.openOrders || []);
-            setFuturesOrderHistory(futuresData.orderHistory || []);
-            setPositionHistory(futuresData.positions || []);
-            setTradeHistory(futuresData.tradeHistory || []);
-            setTransactionHistory(futuresData.transactionHistory || []);
-            setFundingFeeHistory(futuresData.fundingFees || []);
-          }
+            if (futuresDataResult.status === 'fulfilled') {
+              const futuresData = futuresDataResult.value;
+              setFuturesOpenOrders(futuresData.openOrders || []);
+              setFuturesOrderHistory(futuresData.orderHistory || []);
+              setPositionHistory(futuresData.positions || []);
+              setTradeHistory(futuresData.tradeHistory || []);
+              setTransactionHistory(futuresData.transactionHistory || []);
+              setFundingFeeHistory(futuresData.fundingFees || []);
+            }
 
-          // Process spot-specific data
-          if (transferHistoryResult.status === 'fulfilled' && transferHistoryResult.value) {
-            setSpotTransferHistory(transferHistoryResult.value);
+            // Process spot-specific data
+            if (transferHistoryResult.status === 'fulfilled' && transferHistoryResult.value) {
+              setSpotTransferHistory(transferHistoryResult.value);
+            }
+            if (convertHistoryResult.status === 'fulfilled' && convertHistoryResult.value) {
+              setSpotConvertHistory(convertHistoryResult.value);
+            }
           }
-          if (convertHistoryResult.status === 'fulfilled' && convertHistoryResult.value) {
-            setSpotConvertHistory(convertHistoryResult.value);
-          }
-
         } catch (bgError) {
           console.warn('Background data fetch error (non-critical):', bgError.message);
         }
