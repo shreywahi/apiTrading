@@ -226,15 +226,15 @@ export const useOptimizedDashboardData = (binanceApi) => {
       let futuresAccount = null;
       try {
         console.log('Fetching futures account data...');
-        if (binanceApi && binanceApi.apiKey && binanceApi.apiSecret && typeof binanceApi.getFuturesAccountInfo === 'function') {
-          futuresAccount = await Promise.resolve(binanceApi.getFuturesAccountInfo());
+        if (binanceApi && typeof binanceApi.getFuturesAccountInfo === 'function') {
+          futuresAccount = await binanceApi.getFuturesAccountInfo();
         } else {
-          console.log('No futures credentials - skipping futures account fetch in production.');
-          futuresAccount = null;
+          throw new Error('getFuturesAccountInfo is not available on binanceApi');
         }
         console.log('Futures account data fetched:', futuresAccount ? 'success' : 'null');
       } catch (futuresError) {
         console.warn('Futures account fetch failed:', futuresError?.message || 'Unknown error');
+        setError(futuresError?.message || 'Futures account fetch failed');
         futuresAccount = null;
       }
 
@@ -310,10 +310,13 @@ export const useOptimizedDashboardData = (binanceApi) => {
         spotOrdersPromise = Promise.resolve([]);
       }
 
-      const futuresOrdersPromise = (binanceApi && binanceApi.apiKey && binanceApi.apiSecret && typeof binanceApi.getFuturesOrdersData === 'function')
-        ? binanceApi.getFuturesOrdersData()
-        : Promise.resolve({ openOrders: [], orderHistory: [], tradeHistory: [], transactionHistory: [], fundingFees: [] });
-      
+      let futuresOrdersPromise;
+      if (binanceApi && typeof binanceApi.getFuturesOrdersData === 'function') {
+        futuresOrdersPromise = binanceApi.getFuturesOrdersData();
+      } else {
+        futuresOrdersPromise = Promise.reject(new Error('getFuturesOrdersData is not available on binanceApi'));
+      }
+
       const [openOrdersResult, futuresDataResult] = await Promise.allSettled([
         spotOrdersPromise,
         futuresOrdersPromise
@@ -367,21 +370,38 @@ export const useOptimizedDashboardData = (binanceApi) => {
       // Phase 1: Critical data (parallel fetch) - prioritize order history
       let spotOrdersPromise, futuresOrdersPromise, spotAccountPromise, futuresAccountPromise;
 
-      if (isLocalhost) {
-        console.log('fullRefresh: Using real API calls in localhost');
-        // Fetch spot orders only in localhost
-        spotOrdersPromise = binanceApi.getSpotOnlyOpenOrders();
-        spotAccountPromise = binanceApi.makeRequest('/api/v3/account');
+      // Attempt real API calls for spot in all environments; surface errors if methods missing
+      try {
+        spotOrdersPromise = (binanceApi && typeof binanceApi.getSpotOnlyOpenOrders === 'function')
+          ? binanceApi.getSpotOnlyOpenOrders()
+          : Promise.reject(new Error('getSpotOnlyOpenOrders is not available on binanceApi'));
+      } catch (err) {
+        spotOrdersPromise = Promise.reject(err);
+      }
+      
+      try {
+        spotAccountPromise = (binanceApi && typeof binanceApi.makeRequest === 'function')
+          ? binanceApi.makeRequest('/api/v3/account')
+          : Promise.reject(new Error('makeRequest is not available on binanceApi'));
+      } catch (err) {
+        spotAccountPromise = Promise.reject(err);
       }
 
-      console.log('fullRefresh: Fetching futures data in production');
-      if (binanceApi && binanceApi.apiKey && binanceApi.apiSecret && typeof binanceApi.getFuturesOrdersData === 'function' && typeof binanceApi.getFuturesAccountInfo === 'function') {
-        futuresOrdersPromise = binanceApi.getFuturesOrdersData();
-        futuresAccountPromise = binanceApi.getFuturesAccountInfo();
-      } else {
-        console.log('fullRefresh: No futures credentials - using mock/fallback futures data');
-        futuresOrdersPromise = Promise.resolve({ openOrders: [], orderHistory: [], tradeHistory: [], transactionHistory: [], fundingFees: [] });
-        futuresAccountPromise = Promise.resolve(null);
+      // Attempt real futures calls in all environments and surface errors if unavailable
+      try {
+        futuresOrdersPromise = (binanceApi && typeof binanceApi.getFuturesOrdersData === 'function')
+          ? binanceApi.getFuturesOrdersData()
+          : Promise.reject(new Error('getFuturesOrdersData is not available on binanceApi'));
+      } catch (err) {
+        futuresOrdersPromise = Promise.reject(err);
+      }
+      
+      try {
+        futuresAccountPromise = (binanceApi && typeof binanceApi.getFuturesAccountInfo === 'function')
+          ? binanceApi.getFuturesAccountInfo()
+          : Promise.reject(new Error('getFuturesAccountInfo is not available on binanceApi'));
+      } catch (err) {
+        futuresAccountPromise = Promise.reject(err);
       }
 
       const [spotOrders, futuresOrders, spotAccount, futuresAccount] = await Promise.allSettled([
