@@ -191,15 +191,6 @@ export const useOptimizedDashboardData = (binanceApi) => {
           console.warn('Account data fetch failed, using cached data:', accountError?.message || 'Unknown error');
           spotAccount = accountCache.current?.data || null;
         }
-      } else {
-        // In production, use mock data if no cached data available
-        if (accountCache.current.data && (now - accountCache.current.timestamp) < accountCache.current.ttl) {
-          spotAccount = accountCache.current.data;
-        } else {
-          // Use mock data for production
-          spotAccount = getMockAccountData();
-          accountCache.current = { data: spotAccount, timestamp: now };
-        }
       }
 
       // Check cache for orders - only fetch spot orders in localhost
