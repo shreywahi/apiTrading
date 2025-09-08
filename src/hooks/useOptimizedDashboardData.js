@@ -140,7 +140,7 @@ export const useOptimizedDashboardData = (binanceApi) => {
           accountCache.current = { data: spotAccount, timestamp: now };
         }
       } catch (accountError) {
-        console.warn('Account data fetch failed, using cached data:', accountError.message);
+        console.warn('Account data fetch failed, using cached data:', accountError?.message || 'Unknown error');
         spotAccount = accountCache.current?.data || null;
       }
 
@@ -169,7 +169,7 @@ export const useOptimizedDashboardData = (binanceApi) => {
       try {
         futuresAccount = await Promise.resolve(binanceApi.getFuturesAccountInfo());
       } catch (futuresError) {
-        console.warn('Futures account fetch failed:', futuresError.message);
+        console.warn('Futures account fetch failed:', futuresError?.message || 'Unknown error');
         futuresAccount = null;
       }
 
@@ -218,11 +218,10 @@ export const useOptimizedDashboardData = (binanceApi) => {
       setOpenOrders(openOrdersData || []);
 
     } catch (error) {
-      console.error('Fast refresh failed:', error);
+      console.error('Fast refresh failed:', error?.message || 'Unknown error');
       // Set empty arrays on failure to prevent NaN
       setOpenOrders([]);
       // Don't set error state for fast refresh failures to avoid UI disruption
-      // setError(error.message);
     } finally {
       setRefreshing(false);
     }
@@ -270,8 +269,8 @@ export const useOptimizedDashboardData = (binanceApi) => {
       await fastRefresh();
 
     } catch (error) {
-      console.error('Order data refresh failed:', error.message);
-      setError(error.message);
+      console.error('Order data refresh failed:', error?.message || 'Unknown error');
+      setError(error?.message || 'Unknown error occurred');
       // Set empty arrays on failure
       setOpenOrders([]);
       setFuturesOpenOrders([]);
@@ -410,8 +409,8 @@ export const useOptimizedDashboardData = (binanceApi) => {
       lastFullFetch.current = Date.now();
 
     } catch (error) {
-      setError(error.message);
-      console.error('Full refresh failed:', error.message);
+      console.error('Full refresh failed:', error?.message || 'Unknown error');
+      setError(error?.message || 'Unknown error occurred');
       // Set empty arrays on failure to prevent NaN
       setOpenOrders([]);
       setFuturesOpenOrders([]);

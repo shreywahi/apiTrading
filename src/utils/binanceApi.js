@@ -309,17 +309,28 @@ class BinanceAPI {
       return response.data;
     } catch (error) {
       // Enhanced error handling with null checks
-      const errorDetails = this.handleApiError(error);
+      let errorDetails;
+      try {
+        errorDetails = this.handleApiError(error);
+      } catch (handleError) {
+        console.error('Error in handleApiError:', handleError);
+        errorDetails = {
+          status: 500,
+          message: 'Error handling failed',
+          data: null
+        };
+      }
       
       // Log the error for debugging
       console.error('API Request failed:', {
         endpoint,
         error: errorDetails,
-        originalError: error ? error.message : 'Null error'
+        originalError: error ? (error.message || 'No message') : 'Null error'
       });
 
-      // Throw a structured error
-      throw new Error(`API Error: ${errorDetails.message}`);
+      // Throw a structured error with safe message access
+      const errorMessage = errorDetails && errorDetails.message ? errorDetails.message : 'Unknown API error';
+      throw new Error(`API Error: ${errorMessage}`);
     }
   }
 
@@ -595,38 +606,55 @@ class BinanceAPI {
    * Enhanced error handling for API requests
    */
   handleApiError(error) {
-    // Handle null error objects
-    if (!error) {
-      console.warn('API Error: Null error object received');
+    try {
+      // Handle null error objects
+      if (!error) {
+        console.warn('API Error: Null error object received');
+        return {
+          status: 500,
+          message: 'Unknown API error occurred',
+          data: null
+        };
+      }
+
+      // Handle cases where error.response is null or undefined
+      if (!error.response) {
+        console.warn('API Error: No response object in error', error);
+        return {
+          status: error.status || 500,
+          message: error.message || 'Network error occurred',
+          data: error.data || null
+        };
+      }
+
+      // Safely access response properties
+      const status = error.response.status || 500;
+      let data = null;
+      let message = 'API request failed';
+
+      try {
+        data = error.response.data;
+        message = data?.msg || error.message || 'API request failed';
+      } catch (dataError) {
+        console.warn('Error accessing response data:', dataError);
+        message = error.message || 'API request failed';
+      }
+
+      console.error(`API Error [${status}]:`, message);
+
+      return {
+        status,
+        message,
+        data
+      };
+    } catch (handlerError) {
+      console.error('Critical error in handleApiError:', handlerError);
       return {
         status: 500,
-        message: 'Unknown API error occurred',
+        message: 'Critical error handling API failure',
         data: null
       };
     }
-
-    // Handle cases where error.response is null
-    if (!error.response) {
-      console.warn('API Error: No response object in error', error);
-      return {
-        status: error.status || 500,
-        message: error.message || 'Network error occurred',
-        data: error.data || null
-      };
-    }
-
-    // Normal error handling
-    const status = error.response.status;
-    const data = error.response.data;
-    const message = data?.msg || error.message || 'API request failed';
-
-    console.error(`API Error [${status}]:`, message);
-
-    return {
-      status,
-      message,
-      data
-    };
   }
 
   // Get comprehensive account information (spot + futures) using Binance's direct values

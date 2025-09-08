@@ -172,8 +172,8 @@ export const useUltraOptimizedDashboardData = (binanceApi) => {
       lastFullFetch.current = Date.now();
 
     } catch (error) {
-      console.error('Smart full refresh failed:', error.message);
-      setError(error.message);
+      console.error('Smart full refresh failed:', error?.message || 'Unknown error');
+      setError(error?.message || 'Unknown error occurred');
     } finally {
       setLoading(false);
     }
@@ -279,13 +279,13 @@ export const useUltraOptimizedDashboardData = (binanceApi) => {
       }
 
     } catch (error) {
-      console.error('Ultra-fast refresh failed:', error.message);
+      console.error('Ultra-fast refresh failed:', error?.message || 'Unknown error');
       
       // Try to restore from backup instead of showing zero data
       if (restoreFromBackup()) {
         setError(null); // Clear error since we recovered
       } else {
-        setError(error.message);
+        setError(error?.message || 'Unknown error occurred');
       }
     } finally {
       setRefreshing(false);

@@ -63,6 +63,7 @@ export class BinancePerformanceOptimizer {
 
       return priceMap;
     } catch (error) {
+      console.warn('Price fetch failed, using cache:', error?.message || 'Unknown error');
       return {};
     }
   }
@@ -88,14 +89,14 @@ export class BinancePerformanceOptimizer {
         accountType: account.accountType
       };
     } catch (error) {
-      console.error('Essential account info failed:', error);
+      console.error('Essential account info failed:', error?.message || 'Unknown error');
       // Return safe defaults instead of throwing
       return {
         balances: [],
         canTrade: false,
         updateTime: Date.now(),
         accountType: 'SPOT',
-        error: error.message
+        error: error?.message || 'Unknown error'
       };
     }
   }
@@ -116,13 +117,13 @@ export class BinancePerformanceOptimizer {
         timestamp: Date.now()
       };
     } catch (error) {
-      console.error('Batched account data failed:', error);
+      console.error('Batched account data failed:', error?.message || 'Unknown error');
       // Return safe defaults
       return {
         spot: { balances: [], canTrade: false },
         futures: null,
         timestamp: Date.now(),
-        error: error.message
+        error: error?.message || 'Unknown error'
       };
     }
   }
@@ -206,7 +207,7 @@ export const extendBinanceApiWithOptimizations = (binanceApi) => {
 
       return result;
     } catch (error) {
-      console.error('Fast refresh failed:', error);
+      console.error('Fast refresh failed:', error?.message || 'Unknown error');
       // Return safe defaults on error
       return {
         account: null,
@@ -214,7 +215,7 @@ export const extendBinanceApiWithOptimizations = (binanceApi) => {
         prices: {},
         loadTime: Date.now() - startTime,
         optimized: true,
-        error: error.message
+        error: error?.message || 'Unknown error'
       };
     }
   };
