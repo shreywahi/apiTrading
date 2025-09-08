@@ -1192,21 +1192,24 @@ class BinanceAPI {
       }
       
       // Strategy 4: Get recent spot orders from discovered and popular symbols
+      const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
       try {
-        for (const symbol of symbolsToCheck) {
-          if (allOrders.length >= limit * 2) break; // Get extra to allow for filtering
-          
-          try {
-            const symbolOrders = await this.getRecentSpotOrders(symbol, 10, thirtyDaysAgo);
-            const recentSpotOrders = symbolOrders
-              .filter(order => (order.time || order.updateTime || 0) >= thirtyDaysAgo)
-              .map(order => ({
-                ...order,
-                market: 'Spot'
-              }));
-            allOrders.push(...recentSpotOrders);
-          } catch (error) {
-            continue; // Skip symbols that error
+        if (isLocalhost) {
+          for (const symbol of symbolsToCheck) {
+            if (allOrders.length >= limit * 2) break; // Get extra to allow for filtering
+            
+            try {
+              const symbolOrders = await this.getRecentSpotOrders(symbol, 10, thirtyDaysAgo);
+              const recentSpotOrders = symbolOrders
+                .filter(order => (order.time || order.updateTime || 0) >= thirtyDaysAgo)
+                .map(order => ({
+                  ...order,
+                  market: 'Spot'
+                }));
+              allOrders.push(...recentSpotOrders);
+            } catch (error) {
+              continue; // Skip symbols that error
+            }
           }
         }
       } catch (error) {
@@ -2099,99 +2102,102 @@ class BinanceAPI {
 
   // 2. Get spot order history (only completed/cancelled spot orders)
   async getSpotOnlyOrderHistory(symbol = null, limit = 100) {
+    const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
     try {
-      // Get last 6 months of order history
-      const endTime = Date.now();
-      const startTime = endTime - (6 * 30 * 24 * 60 * 60 * 1000); // 6 months ago
-      
-      if (!symbol) {
-        // Get orders for active symbols from account
-        const account = await this.makeRequest('/api/v3/account');
-        const activeAssets = account.balances
-          .filter(balance => parseFloat(balance.free) > 0 || parseFloat(balance.locked) > 0)
-          .map(balance => balance.asset)
-          .slice(0, 10); // Limit to avoid too many API calls
+      if (isLocalhost) {
+        // Get last 6 months of order history
+        const endTime = Date.now();
+        const startTime = endTime - (6 * 30 * 24 * 60 * 60 * 1000); // 6 months ago
+        
+        if (!symbol) {
+          // Get orders for active symbols from account
+          const account = await this.makeRequest('/api/v3/account');
+          const activeAssets = account.balances
+            .filter(balance => parseFloat(balance.free) > 0 || parseFloat(balance.locked) > 0)
+            .map(balance => balance.asset)
+            .slice(0, 10); // Limit to avoid too many API calls
 
-        // Always include common pairs for completeness
-        const commonPairs = ['BTCUSDC', 'ETHUSDC', 'BNBUSDC', 'ADAUSDC', 'SOLUSDC', 'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT'];
+          // Always include common pairs for completeness
+          const commonPairs = ['BTCUSDC', 'ETHUSDC', 'BNBUSDC', 'ADAUSDC', 'SOLUSDC', 'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT'];
 
-        const allPairs = new Set();
-        // Add pairs from active assets
-        for (const asset of activeAssets) {
-          if (asset === 'USDT' || asset === 'BUSD' || asset === 'USDC') continue; // Skip stablecoins
-          allPairs.add(`${asset}USDT`);
-          allPairs.add(`${asset}BTC`);
-          allPairs.add(`${asset}ETH`);
-        }
-        // Add common pairs
-        for (const pair of commonPairs) {
-          allPairs.add(pair);
-        }
-
-        const allOrders = [];
-        // Fetch orders for each pair
-        for (const pair of Array.from(allPairs)) {
-          try {
-            const orders = await this.makeRequest('/api/v3/allOrders', {
-              symbol: pair,
-              limit: 100 // Get more orders to allow for time filtering
-            });
-            if (orders && orders.length > 0) {
-              // Filter by time (last 6 months) on client side
-              const recentOrders = orders.filter(order =>
-                (order.time || order.updateTime || 0) >= startTime
-              );
-              allOrders.push(...recentOrders.map(order => ({
-                ...order,
-                market: 'Spot'
-              })));
-            }
-          } catch (error) {
-            continue; // Skip pairs that don't exist or have no orders
+          const allPairs = new Set();
+          // Add pairs from active assets
+          for (const asset of activeAssets) {
+            if (asset === 'USDT' || asset === 'BUSD' || asset === 'USDC') continue; // Skip stablecoins
+            allPairs.add(`${asset}USDT`);
+            allPairs.add(`${asset}BTC`);
+            allPairs.add(`${asset}ETH`);
           }
-          if (allOrders.length >= limit) break;
+          // Add common pairs
+          for (const pair of commonPairs) {
+            allPairs.add(pair);
+          }
+
+          const allOrders = [];
+          // Fetch orders for each pair
+          for (const pair of Array.from(allPairs)) {
+            try {
+              const orders = await this.makeRequest('/api/v3/allOrders', {
+                symbol: pair,
+                limit: 100 // Get more orders to allow for time filtering
+              });
+              if (orders && orders.length > 0) {
+                // Filter by time (last 6 months) on client side
+                const recentOrders = orders.filter(order =>
+                  (order.time || order.updateTime || 0) >= startTime
+                );
+                allOrders.push(...recentOrders.map(order => ({
+                  ...order,
+                  market: 'Spot'
+                })));
+              }
+            } catch (error) {
+              continue; // Skip pairs that don't exist or have no orders
+            }
+            if (allOrders.length >= limit) break;
+          }
+
+          // Sort by time (most recent first)
+          allOrders.sort((a, b) => (b.time || b.updateTime || 0) - (a.time || a.updateTime || 0));
+
+          // Additional filtering to ensure no futures contamination
+          const spotOnlyOrders = allOrders.filter(order => {
+            // Exclude any orders that might be futures-related
+            const symbol = order.symbol || '';
+            return !symbol.includes('PERP') &&
+                  !symbol.includes('_') &&  // Futures symbols sometimes use underscores
+                  !order.positionSide &&   // Futures-specific field
+                  !order.reduceOnly;       // Futures-specific field
+          });
+
+          return spotOnlyOrders.slice(0, limit);
+        } else {
+          // Get orders for specific symbol
+          const orders = await this.makeRequest('/api/v3/allOrders', { 
+            symbol, 
+            limit: 500  // Get more orders to allow for time filtering
+          });
+          
+          // Filter by time (last 6 months) on client side
+          const recentOrders = orders.filter(order => 
+            (order.time || order.updateTime || 0) >= startTime
+          );
+          
+          // Additional filtering to ensure no futures contamination
+          const spotOnlyOrders = recentOrders.filter(order => {
+            // Exclude any orders that might be futures-related
+            const symbol = order.symbol || '';
+            return !symbol.includes('PERP') && 
+                  !symbol.includes('_') &&  // Futures symbols sometimes use underscores
+                  !order.positionSide &&   // Futures-specific field
+                  !order.reduceOnly;       // Futures-specific field
+          });
+          
+          return spotOnlyOrders.map(order => ({
+            ...order,
+            market: 'Spot'
+          }));
         }
-
-        // Sort by time (most recent first)
-        allOrders.sort((a, b) => (b.time || b.updateTime || 0) - (a.time || a.updateTime || 0));
-
-        // Additional filtering to ensure no futures contamination
-        const spotOnlyOrders = allOrders.filter(order => {
-          // Exclude any orders that might be futures-related
-          const symbol = order.symbol || '';
-          return !symbol.includes('PERP') &&
-                 !symbol.includes('_') &&  // Futures symbols sometimes use underscores
-                 !order.positionSide &&   // Futures-specific field
-                 !order.reduceOnly;       // Futures-specific field
-        });
-
-        return spotOnlyOrders.slice(0, limit);
-      } else {
-        // Get orders for specific symbol
-        const orders = await this.makeRequest('/api/v3/allOrders', { 
-          symbol, 
-          limit: 500  // Get more orders to allow for time filtering
-        });
-        
-        // Filter by time (last 6 months) on client side
-        const recentOrders = orders.filter(order => 
-          (order.time || order.updateTime || 0) >= startTime
-        );
-        
-        // Additional filtering to ensure no futures contamination
-        const spotOnlyOrders = recentOrders.filter(order => {
-          // Exclude any orders that might be futures-related
-          const symbol = order.symbol || '';
-          return !symbol.includes('PERP') && 
-                 !symbol.includes('_') &&  // Futures symbols sometimes use underscores
-                 !order.positionSide &&   // Futures-specific field
-                 !order.reduceOnly;       // Futures-specific field
-        });
-        
-        return spotOnlyOrders.map(order => ({
-          ...order,
-          market: 'Spot'
-        }));
       }
     } catch (error) {
       console.warn('Failed to get spot order history:', error.message);
@@ -2201,42 +2207,24 @@ class BinanceAPI {
 
   // 3. Get transfer history (internal transfers between wallets like in Binance app)
   async getTransferHistory(limit = 100) {
+    const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
     try {
-      // Get last 3 months of transfer history
-      const endTime = Date.now();
-      const startTime = endTime - (90 * 24 * 60 * 60 * 1000); // 3 months ago
-      
-      // This gets internal transfers between spot, futures, margin wallets
-      const response = await this.makeRequest('/sapi/v1/asset/transfer', { 
-        type: 'MAIN_UMFUTURE', // Main to futures
-        limit: Math.min(limit, 100),
-        startTime: startTime,
-        endTime: endTime
-      });
-      
-      const transfers = [];
-      if (response && response.rows) {
-        transfers.push(...response.rows.map(transfer => ({
-          ...transfer,
-          type: 'Internal Transfer',
-          asset: transfer.asset,
-          amount: transfer.amount,
-          status: transfer.status,
-          insertTime: transfer.timestamp
-        })));
-      }
-
-      // Also get futures to main transfers
-      try {
-        const reverseTransfers = await this.makeRequest('/sapi/v1/asset/transfer', { 
-          type: 'UMFUTURE_MAIN', // Futures to main
+      if (isLocalhost) {
+        // Get last 3 months of transfer history
+        const endTime = Date.now();
+        const startTime = endTime - (90 * 24 * 60 * 60 * 1000); // 3 months ago
+        
+        // This gets internal transfers between spot, futures, margin wallets
+        const response = await this.makeRequest('/sapi/v1/asset/transfer', { 
+          type: 'MAIN_UMFUTURE', // Main to futures
           limit: Math.min(limit, 100),
           startTime: startTime,
           endTime: endTime
         });
         
-        if (reverseTransfers && reverseTransfers.rows) {
-          transfers.push(...reverseTransfers.rows.map(transfer => ({
+        const transfers = [];
+        if (response && response.rows) {
+          transfers.push(...response.rows.map(transfer => ({
             ...transfer,
             type: 'Internal Transfer',
             asset: transfer.asset,
@@ -2245,13 +2233,34 @@ class BinanceAPI {
             insertTime: transfer.timestamp
           })));
         }
-      } catch (error) {
-        console.warn('Failed to get reverse transfers:', error.message);
-      }
 
-      // Sort by time (most recent first)
-      transfers.sort((a, b) => (b.insertTime || 0) - (a.insertTime || 0));
-      return transfers.slice(0, limit);
+        // Also get futures to main transfers
+        try {
+          const reverseTransfers = await this.makeRequest('/sapi/v1/asset/transfer', { 
+            type: 'UMFUTURE_MAIN', // Futures to main
+            limit: Math.min(limit, 100),
+            startTime: startTime,
+            endTime: endTime
+          });
+          
+          if (reverseTransfers && reverseTransfers.rows) {
+            transfers.push(...reverseTransfers.rows.map(transfer => ({
+              ...transfer,
+              type: 'Internal Transfer',
+              asset: transfer.asset,
+              amount: transfer.amount,
+              status: transfer.status,
+              insertTime: transfer.timestamp
+            })));
+          }
+        } catch (error) {
+          console.warn('Failed to get reverse transfers:', error.message);
+        }
+
+        // Sort by time (most recent first)
+        transfers.sort((a, b) => (b.insertTime || 0) - (a.insertTime || 0));
+        return transfers.slice(0, limit);
+      }
     } catch (error) {
       console.warn('Failed to get transfer history:', error.message);
       return [];
@@ -2260,32 +2269,35 @@ class BinanceAPI {
 
   // 4. Get convert history (asset conversions in spot wallet like in Binance app)
   async getConvertHistory(limit = 100) {
+    const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
     try {
-      // Get last 3 months of convert history
-      const endTime = Date.now();
-      const startTime = endTime - (90 * 24 * 60 * 60 * 1000); // 3 months ago
-      
-      const params = { 
-        limit: Math.min(limit, 100),
-        startTime: startTime,
-        endTime: endTime
-      };
-      
-      const response = await this.makeRequest('/sapi/v1/convert/tradeFlow', params);
-      
-      if (response && response.list) {
-        return response.list.map(convert => ({
-          ...convert,
-          fromAsset: convert.fromAsset,
-          toAsset: convert.toAsset,
-          fromAmount: convert.fromAmount,
-          toAmount: convert.toAmount,
-          createTime: convert.createTime,
-          status: 'Success' // Convert trades are usually completed
-        }));
+      if (isLocalhost) {
+        // Get last 3 months of convert history
+        const endTime = Date.now();
+        const startTime = endTime - (90 * 24 * 60 * 60 * 1000); // 3 months ago
+        
+        const params = { 
+          limit: Math.min(limit, 100),
+          startTime: startTime,
+          endTime: endTime
+        };
+        
+        const response = await this.makeRequest('/sapi/v1/convert/tradeFlow', params);
+        
+        if (response && response.list) {
+          return response.list.map(convert => ({
+            ...convert,
+            fromAsset: convert.fromAsset,
+            toAsset: convert.toAsset,
+            fromAmount: convert.fromAmount,
+            toAmount: convert.toAmount,
+            createTime: convert.createTime,
+            status: 'Success' // Convert trades are usually completed
+          }));
+        }
+        
+        return [];
       }
-      
-      return [];
     } catch (error) {
       console.warn('Failed to get convert history:', error.message);
       return [];
