@@ -2064,26 +2064,29 @@ class BinanceAPI {
 
   // 1. Get spot open orders (only open orders for spot market)
   async getSpotOnlyOpenOrders(symbol = null) {
+    const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
     try {
-      const params = {};
-      if (symbol) params.symbol = symbol;
-      
-      const orders = await this.makeRequest('/api/v3/openOrders', params);
-      
-      // Additional filtering to ensure no futures contamination
-      const spotOnlyOrders = orders.filter(order => {
-        // Exclude any orders that might be futures-related
-        const symbol = order.symbol || '';
-        return !symbol.includes('PERP') && 
-               !symbol.includes('_') &&  // Futures symbols sometimes use underscores
-               !order.positionSide &&   // Futures-specific field
-               !order.reduceOnly;       // Futures-specific field
-      });
-      
-      return spotOnlyOrders.map(order => ({
-        ...order,
-        market: 'Spot'
-      }));
+      if (isLocalhost) {
+        const params = {};
+        if (symbol) params.symbol = symbol;
+        
+        const orders = await this.makeRequest('/api/v3/openOrders', params);
+        
+        // Additional filtering to ensure no futures contamination
+        const spotOnlyOrders = orders.filter(order => {
+          // Exclude any orders that might be futures-related
+          const symbol = order.symbol || '';
+          return !symbol.includes('PERP') && 
+                !symbol.includes('_') &&  // Futures symbols sometimes use underscores
+                !order.positionSide &&   // Futures-specific field
+                !order.reduceOnly;       // Futures-specific field
+        });
+        
+        return spotOnlyOrders.map(order => ({
+          ...order,
+          market: 'Spot'
+        }));
+      }
     } catch (error) {
       console.warn('Failed to get spot open orders:', error.message);
       return [];
