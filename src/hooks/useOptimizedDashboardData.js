@@ -372,11 +372,6 @@ export const useOptimizedDashboardData = (binanceApi) => {
         // Fetch spot orders only in localhost
         spotOrdersPromise = binanceApi.getSpotOnlyOpenOrders();
         spotAccountPromise = binanceApi.makeRequest('/api/v3/account');
-      } else {
-        console.log('fullRefresh: Using mock data in production');
-        // In production, use mock data
-        spotOrdersPromise = Promise.resolve(getMockOpenOrders());
-        spotAccountPromise = Promise.resolve(getMockAccountData());
       }
 
       console.log('fullRefresh: Fetching futures data in production');
