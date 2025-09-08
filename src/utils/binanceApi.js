@@ -220,28 +220,29 @@ class BinanceAPI {
 
     let lastError = null;
 
-    // Try each endpoint
-    const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
-    if (isLocalhost) {
-      for (const baseUrl of endpointsToTry) {
-        try {
-          const url = `${baseUrl}${endpoint}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-          
-          const response = await axios.get(url, { 
-            timeout: 15000 
-          });
-          
-          return response.data;
-        } catch (error) {
-          console.warn(`❌ Public API failed with ${baseUrl}:`, error.message);
-          lastError = error;
-          continue;
-        }
+    // Try each endpoint - public APIs should work in both localhost and production
+    for (const baseUrl of endpointsToTry) {
+      try {
+        const url = `${baseUrl}${endpoint}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+        
+        const response = await axios.get(url, { 
+          timeout: 15000 
+        });
+        
+        return response.data;
+      } catch (error) {
+        console.warn(`❌ Public API failed with ${baseUrl}:`, error.message);
+        lastError = error;
+        continue;
       }
     }
 
     // If all methods failed, throw the last error
-    throw new Error(`Public API Error: ${lastError.message}`);
+    if (lastError) {
+      throw new Error(`Public API Error: ${lastError.message}`);
+    } else {
+      throw new Error('All public API endpoints failed');
+    }
   }
 
   // Helper method for public futures endpoints (no authentication needed)
@@ -254,7 +255,7 @@ class BinanceAPI {
 
     let lastError = null;
 
-    // Try each endpoint
+    // Try each endpoint - public APIs should work in both localhost and production
     for (const baseUrl of endpointsToTry) {
       try {
         const url = `${baseUrl}${endpoint}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
@@ -272,7 +273,11 @@ class BinanceAPI {
     }
 
     // If all methods failed, throw the last error
-    throw new Error(`Public Futures API Error: ${lastError.message}`);
+    if (lastError) {
+      throw new Error(`Public Futures API Error: ${lastError.message}`);
+    } else {
+      throw new Error('All public futures API endpoints failed');
+    }
   }
 
   /**
@@ -386,7 +391,9 @@ class BinanceAPI {
     queryParams.append('signature', signature);
 
     // Try different endpoints in order of preference - use direct API for spot with fallback
-    const endpointsToTry = this.useTestnet ? [API_ENDPOINTS.TESTNET_DIRECT] : [API_ENDPOINTS.LOCAL_PROXY];
+    const endpointsToTry = this.useTestnet 
+      ? [API_ENDPOINTS.TESTNET_DIRECT] 
+      : [API_ENDPOINTS.LOCAL_PROXY, 'https://api.binance.com']; // Add direct API for production
 
     // If we have a working endpoint from previous calls, try it first
     if (this.workingEndpoint && !endpointsToTry.includes(this.workingEndpoint)) {
@@ -395,24 +402,21 @@ class BinanceAPI {
 
     let lastError = null;
 
-    // Try each endpoint
-    const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
-    if (isLocalhost) {
-      for (const baseUrl of endpointsToTry) {
-        try {
-          let response;
-          const url = `${baseUrl}${endpoint}?${queryParams.toString()}`;
-          response = await axios.get(url, { 
-            headers: this.getHeaders(),
-            timeout: 15000 
-          });
-          // If successful, cache this endpoint
-          this.workingEndpoint = baseUrl;
-          return response.data;
-        } catch (error) {
-          lastError = error;
-          continue;
-        }
+    // Try each endpoint (always try, not just on localhost)
+    for (const baseUrl of endpointsToTry) {
+      try {
+        let response;
+        const url = `${baseUrl}${endpoint}?${queryParams.toString()}`;
+        response = await axios.get(url, { 
+          headers: this.getHeaders(),
+          timeout: 15000 
+        });
+        // If successful, cache this endpoint
+        this.workingEndpoint = baseUrl;
+        return response.data;
+      } catch (error) {
+        lastError = error;
+        continue;
       }
     }
 
@@ -538,7 +542,11 @@ class BinanceAPI {
     queryParams.append('signature', signature);
 
     // Choose endpoints based on spot/futures - for spot use proxy first (CORS), for futures use direct
-    const endpointsToTry = isFutures ? [API_ENDPOINTS.FUTURES_DIRECT] : [API_ENDPOINTS.LOCAL_PROXY];
+    const endpointsToTry = isFutures 
+      ? [API_ENDPOINTS.FUTURES_DIRECT] 
+      : (this.useTestnet 
+          ? [API_ENDPOINTS.TESTNET_DIRECT] 
+          : [API_ENDPOINTS.LOCAL_PROXY, 'https://api.binance.com']); // Add direct API for production
 
     let lastError = null;
 
@@ -601,7 +609,11 @@ class BinanceAPI {
     queryParams.append('signature', signature);
 
     // Choose endpoints based on spot/futures - for spot use proxy first (CORS), for futures use direct
-    const endpointsToTry = isFutures ? [API_ENDPOINTS.FUTURES_DIRECT] : [API_ENDPOINTS.LOCAL_PROXY];
+    const endpointsToTry = isFutures 
+      ? [API_ENDPOINTS.FUTURES_DIRECT] 
+      : (this.useTestnet 
+          ? [API_ENDPOINTS.TESTNET_DIRECT] 
+          : [API_ENDPOINTS.LOCAL_PROXY, 'https://api.binance.com']); // Add direct API for production
 
     let lastError = null;
 
@@ -1371,7 +1383,7 @@ class BinanceAPI {
         )
       );
       
-      uniqueOrders.sort((a, b) => (b.time || b.updateTime || 0) - (a.time || b.updateTime || 0));
+      uniqueOrders.sort((a, b) => (b.time || b.updateTime || 0) - (a.time || a.updateTime || 0));
       return uniqueOrders.slice(0, limit);
       
     } catch (error) {
@@ -1659,23 +1671,11 @@ class BinanceAPI {
   // Get 24h ticker price change statistics
   async get24hTicker(symbol = null) {
     try {
-      if (this.useMockData) {
-        return symbol ? 
-          { symbol, priceChange: "1234.56", priceChangePercent: "2.75" } :
-          [{ symbol: "BTCUSDC", priceChange: "1234.56", priceChangePercent: "2.75" }];
-      }
-
-      let endpoint = `/api/v3/ticker/24hr`;
-      const params = {};
-      if (symbol) {
-        params.symbol = symbol;
-      }
-      
-      // Use public request method for ticker data
-      return await this.makePublicRequest(endpoint, params);
+      const params = symbol ? { symbol } : {};
+      return await this.makePublicRequest('/api/v3/ticker/24hr', params);
     } catch (error) {
-      console.warn('Failed to get ticker data:', error.message);
-      throw new Error(`Failed to get ticker data: ${error.response?.data?.msg || error.message}`);
+      console.warn('Failed to get 24h ticker:', error.message);
+      return null;
     }
   }
 
@@ -2062,6 +2062,8 @@ class BinanceAPI {
   // Set leverage for futures trading
   async setLeverage(symbol, leverage) {
     if (this.useMockData) {
+
+
 
       return { leverage: leverage, maxNotional: '100000', symbol: symbol };
     }

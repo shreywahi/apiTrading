@@ -130,17 +130,22 @@ export const useOptimizedDashboardData = (binanceApi) => {
       const now = Date.now();
       const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
-      // Check cache for account data
+      // Check cache for account data - only fetch in localhost
       let spotAccount = null;
-      try {
-        if (accountCache.current.data && (now - accountCache.current.timestamp) < accountCache.current.ttl) {
-          spotAccount = accountCache.current.data;
-        } else {
-          spotAccount = await Promise.resolve(binanceApi.makeRequest('/api/v3/account'));
-          accountCache.current = { data: spotAccount, timestamp: now };
+      if (isLocalhost) {
+        try {
+          if (accountCache.current.data && (now - accountCache.current.timestamp) < accountCache.current.ttl) {
+            spotAccount = accountCache.current.data;
+          } else {
+            spotAccount = await Promise.resolve(binanceApi.makeRequest('/api/v3/account'));
+            accountCache.current = { data: spotAccount, timestamp: now };
+          }
+        } catch (accountError) {
+          console.warn('Account data fetch failed, using cached data:', accountError?.message || 'Unknown error');
+          spotAccount = accountCache.current?.data || null;
         }
-      } catch (accountError) {
-        console.warn('Account data fetch failed, using cached data:', accountError?.message || 'Unknown error');
+      } else {
+        // In production, use cached data or null
         spotAccount = accountCache.current?.data || null;
       }
 
@@ -166,10 +171,15 @@ export const useOptimizedDashboardData = (binanceApi) => {
 
       // Only fetch futures if needed (reduce to 1-2 calls total)
       let futuresAccount = null;
-      try {
-        futuresAccount = await Promise.resolve(binanceApi.getFuturesAccountInfo());
-      } catch (futuresError) {
-        console.warn('Futures account fetch failed:', futuresError?.message || 'Unknown error');
+      if (isLocalhost) {
+        try {
+          futuresAccount = await Promise.resolve(binanceApi.getFuturesAccountInfo());
+        } catch (futuresError) {
+          console.warn('Futures account fetch failed:', futuresError?.message || 'Unknown error');
+          futuresAccount = null;
+        }
+      } else {
+        // In production, skip futures data to avoid API errors
         futuresAccount = null;
       }
 
@@ -245,7 +255,15 @@ export const useOptimizedDashboardData = (binanceApi) => {
 
       const [openOrdersResult, futuresDataResult] = await Promise.allSettled([
         spotOrdersPromise,
-        binanceApi.getFuturesOrdersData()
+        isLocalhost ? binanceApi.getFuturesOrdersData() : Promise.resolve({
+          openOrders: [],
+          orderHistory: [],
+          positions: [],
+          tradeHistory: [],
+          transactionHistory: [],
+          fundingFees: [],
+          success: false
+        })
       ]);
 
       // Update spot open orders
@@ -297,14 +315,23 @@ export const useOptimizedDashboardData = (binanceApi) => {
       if (isLocalhost) {
         // Fetch spot orders only in localhost
         spotOrdersPromise = binanceApi.getSpotOnlyOpenOrders();
+        spotAccountPromise = binanceApi.makeRequest('/api/v3/account');
       } else {
-        // In production, skip spot orders
+        // In production, skip spot orders and account data
         spotOrdersPromise = Promise.resolve([]);
+        spotAccountPromise = Promise.resolve(null);
       }
 
-      futuresOrdersPromise = binanceApi.getFuturesOrdersData();
-      spotAccountPromise = binanceApi.makeRequest('/api/v3/account');
-      futuresAccountPromise = binanceApi.getFuturesAccountInfo();
+      futuresOrdersPromise = isLocalhost ? binanceApi.getFuturesOrdersData() : Promise.resolve({
+        openOrders: [],
+        orderHistory: [],
+        positions: [],
+        tradeHistory: [],
+        transactionHistory: [],
+        fundingFees: [],
+        success: false
+      });
+      futuresAccountPromise = isLocalhost ? binanceApi.getFuturesAccountInfo() : Promise.resolve(null);
 
       const [spotOrders, futuresOrders, spotAccount, futuresAccount] = await Promise.allSettled([
         spotOrdersPromise,
