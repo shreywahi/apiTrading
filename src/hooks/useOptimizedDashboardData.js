@@ -226,11 +226,8 @@ export const useOptimizedDashboardData = (binanceApi) => {
       let futuresAccount = null;
       try {
         console.log('Fetching futures account data...');
-        if (binanceApi && typeof binanceApi.getFuturesAccountInfo === 'function') {
-          futuresAccount = await binanceApi.getFuturesAccountInfo();
-        } else {
-          throw new Error('getFuturesAccountInfo is not available on binanceApi');
-        }
+        const futuresData = await fetchFuturesData({ useProxy: true });
+        futuresAccount = futuresData.futuresAccount || null;
         console.log('Futures account data fetched:', futuresAccount ? 'success' : 'null');
       } catch (futuresError) {
         console.warn('Futures account fetch failed:', futuresError?.message || 'Unknown error');
@@ -310,17 +307,22 @@ export const useOptimizedDashboardData = (binanceApi) => {
         spotOrdersPromise = Promise.resolve([]);
       }
 
-      let futuresOrdersPromise;
-      if (binanceApi && typeof binanceApi.getFuturesOrdersData === 'function') {
-        futuresOrdersPromise = binanceApi.getFuturesOrdersData();
-      } else {
-        futuresOrdersPromise = Promise.reject(new Error('getFuturesOrdersData is not available on binanceApi'));
-      }
+      // Attempt futures fetch via centralized helper so we can fallback gracefully
+      let openOrdersResult, futuresDataResult;
+      try {
+        const futuresData = await fetchFuturesData({ useProxy: true });
+        openOrdersResult = { status: 'fulfilled', value: await spotOrdersPromise };
+        futuresDataResult = { status: 'fulfilled', value: futuresData.futuresOrders || {} };
+      } catch (fErr) {
+        // If helper fails, still attempt direct promises to capture error details
+        const futuresOrdersPromise = (binanceApi && typeof binanceApi.getFuturesOrdersData === 'function')
+          ? binanceApi.getFuturesOrdersData()
+          : Promise.reject(new Error('getFuturesOrdersData is not available on binanceApi'));
 
-      const [openOrdersResult, futuresDataResult] = await Promise.allSettled([
-        spotOrdersPromise,
-        futuresOrdersPromise
-      ]);
+        const results = await Promise.allSettled([spotOrdersPromise, futuresOrdersPromise]);
+        openOrdersResult = results[0];
+        futuresDataResult = results[1];
+      }
 
       // Update spot open orders
       if (openOrdersResult.status === 'fulfilled') {
@@ -332,6 +334,15 @@ export const useOptimizedDashboardData = (binanceApi) => {
       // Update all futures order data
       if (futuresDataResult.status === 'fulfilled') {
         const futuresData = futuresDataResult.value;
+        setFuturesOpenOrders(futuresData.openOrders || []);
+        setFuturesOrderHistory(futuresData.orderHistory || []);
+        setTradeHistory(futuresData.tradeHistory || []);
+        setTransactionHistory(futuresData.transactionHistory || []);
+        setFundingFeeHistory(futuresData.fundingFees || []);
+      }
+      // If futuresOrders not fulfilled above but we have data from proxy or helper, ensure state is updated
+      else if (typeof futuresOrders !== 'undefined' && futuresOrders && futuresOrders.value) {
+        const futuresData = futuresOrders.value;
         setFuturesOpenOrders(futuresData.openOrders || []);
         setFuturesOrderHistory(futuresData.orderHistory || []);
         setTradeHistory(futuresData.tradeHistory || []);
@@ -426,6 +437,15 @@ export const useOptimizedDashboardData = (binanceApi) => {
       }
 
       if (futuresOrders.status === 'fulfilled') {
+        const futuresData = futuresOrders.value;
+        setFuturesOpenOrders(futuresData.openOrders || []);
+        setFuturesOrderHistory(futuresData.orderHistory || []);
+        setTradeHistory(futuresData.tradeHistory || []);
+        setTransactionHistory(futuresData.transactionHistory || []);
+        setFundingFeeHistory(futuresData.fundingFees || []);
+      }
+      // If futuresOrders not fulfilled above but we have data from proxy or helper, ensure state is updated
+      else if (typeof futuresOrders !== 'undefined' && futuresOrders && futuresOrders.value) {
         const futuresData = futuresOrders.value;
         setFuturesOpenOrders(futuresData.openOrders || []);
         setFuturesOrderHistory(futuresData.orderHistory || []);
@@ -583,6 +603,57 @@ export const useOptimizedDashboardData = (binanceApi) => {
     
     loadData();
   }, []);
+
+  // Centralized futures fetch helper - tries direct API methods first, then optional proxy on binanceApi
+  const fetchFuturesData = async (opts = { useProxy: true }) => {
+    // Returns an object: { futuresOrders, futuresAccount }
+    // Each may be null if unavailable; throws only for fatal unexpected errors
+    try {
+      // Try direct binanceApi methods first
+      if (binanceApi && typeof binanceApi.getFuturesOrdersData === 'function' && typeof binanceApi.getFuturesAccountInfo === 'function') {
+        const [ordersRes, accountRes] = await Promise.allSettled([
+          binanceApi.getFuturesOrdersData(),
+          binanceApi.getFuturesAccountInfo()
+        ]);
+
+        const futuresOrders = ordersRes.status === 'fulfilled' ? ordersRes.value : null;
+        const futuresAccount = accountRes.status === 'fulfilled' ? accountRes.value : null;
+
+        // If both calls failed due to network/CORS, allow proxy fallback
+        if ((!futuresOrders || !futuresAccount) && opts.useProxy && binanceApi && binanceApi.proxyUrl) {
+          console.log('fetchFuturesData: direct calls incomplete, attempting proxy fallback');
+        }
+
+        if (futuresOrders || futuresAccount) {
+          return { futuresOrders, futuresAccount };
+        }
+      }
+
+      // Proxy fallback (optional) - requires backend proxy configured in binanceApi.proxyUrl
+      if (opts.useProxy && binanceApi && binanceApi.proxyUrl) {
+        try {
+          const proxyBase = binanceApi.proxyUrl.replace(/\/$/, '');
+          const [ordersRes, accountRes] = await Promise.allSettled([
+            fetch(`${proxyBase}/futures/orders`).then(r => r.json()),
+            fetch(`${proxyBase}/futures/account`).then(r => r.json())
+          ]);
+
+          const futuresOrders = ordersRes.status === 'fulfilled' ? ordersRes.value : null;
+          const futuresAccount = accountRes.status === 'fulfilled' ? accountRes.value : null;
+
+          if (futuresOrders || futuresAccount) return { futuresOrders, futuresAccount };
+        } catch (proxyErr) {
+          console.warn('fetchFuturesData: proxy fallback failed:', proxyErr?.message || proxyErr);
+        }
+      }
+
+      // If we reached here, direct methods aren't available or both failed
+      throw new Error('Futures data unavailable: ensure binanceApi implements getFuturesOrdersData/getFuturesAccountInfo or configure a proxy (binanceApi.proxyUrl)');
+    } catch (err) {
+      // Surface the error to caller
+      throw err;
+    }
+  };
 
   return {
     // Data states
