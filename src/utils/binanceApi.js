@@ -48,11 +48,15 @@ class BinanceAPI {
       futures: false,
       margin: false
     };
+    
+    const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
     try {
-      // Test spot trading permissions
-      await this.makeRequest('/api/v3/account');
-      permissions.spot = true;
+      if (isLocalhost) {
+        // Test spot trading permissions
+        await this.makeRequest('/api/v3/account');
+        permissions.spot = true;
+      }
     } catch (error) {
       console.warn('❌ Spot trading permissions: FAILED -', error.message);
     }
