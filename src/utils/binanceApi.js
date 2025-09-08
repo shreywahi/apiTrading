@@ -393,7 +393,7 @@ class BinanceAPI {
     // Try different endpoints in order of preference - use direct API for spot with fallback
     const endpointsToTry = this.useTestnet 
       ? [API_ENDPOINTS.TESTNET_DIRECT] 
-      : [API_ENDPOINTS.LOCAL_PROXY, 'https://api.binance.com']; // Add direct API for production
+      : [API_ENDPOINTS.LOCAL_PROXY];
 
     // If we have a working endpoint from previous calls, try it first
     if (this.workingEndpoint && !endpointsToTry.includes(this.workingEndpoint)) {
@@ -567,7 +567,7 @@ class BinanceAPI {
       ? [API_ENDPOINTS.FUTURES_DIRECT] 
       : (this.useTestnet 
           ? [API_ENDPOINTS.TESTNET_DIRECT] 
-          : [API_ENDPOINTS.LOCAL_PROXY, 'https://api.binance.com']); // Add direct API for production
+          : [API_ENDPOINTS.LOCAL_PROXY]);
 
     let lastError = null;
 
@@ -634,7 +634,7 @@ class BinanceAPI {
       ? [API_ENDPOINTS.FUTURES_DIRECT] 
       : (this.useTestnet 
           ? [API_ENDPOINTS.TESTNET_DIRECT] 
-          : [API_ENDPOINTS.LOCAL_PROXY, 'https://api.binance.com']); // Add direct API for production
+          : [API_ENDPOINTS.LOCAL_PROXY]);
 
     let lastError = null;
 
