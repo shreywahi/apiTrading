@@ -146,12 +146,22 @@ export const extendBinanceApiWithOptimizations = (binanceApi) => {
   // Add fast refresh method
   binanceApi.fastRefresh = async function() {
     const startTime = Date.now();
+    const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
     
     try {
       // Get only essential data
+      let accountPromise = this.getEssentialAccountInfo();
+      let openOrdersPromise;
+
+      if (isLocalhost) {
+        openOrdersPromise = this.getSpotOnlyOpenOrders();
+      } else {
+        openOrdersPromise = Promise.resolve([]);
+      }
+
       const [account, openOrders] = await Promise.allSettled([
-        this.getEssentialAccountInfo(),
-        this.getOpenOrders()
+        accountPromise,
+        openOrdersPromise
       ]);
 
       // Get prices only for assets with balances
@@ -163,7 +173,7 @@ export const extendBinanceApiWithOptimizations = (binanceApi) => {
 
       const result = {
         account: account.status === 'fulfilled' ? account.value : null,
-        openOrders: openOrders.status === 'fulfilled' ? openOrders.value : [],
+        openOrders: openOrders.status === 'fulfilled' ? (openOrders.value || []) : [],
         prices,
         loadTime: Date.now() - startTime,
         optimized: true
@@ -171,7 +181,16 @@ export const extendBinanceApiWithOptimizations = (binanceApi) => {
 
       return result;
     } catch (error) {
-      throw new Error(`Fast refresh failed: ${error.message}`);
+      console.error('Fast refresh failed:', error);
+      // Return safe defaults on error
+      return {
+        account: null,
+        openOrders: [],
+        prices: {},
+        loadTime: Date.now() - startTime,
+        optimized: true,
+        error: error.message
+      };
     }
   };
 

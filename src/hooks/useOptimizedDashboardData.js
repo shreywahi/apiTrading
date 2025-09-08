@@ -128,6 +128,7 @@ export const useOptimizedDashboardData = (binanceApi) => {
     try {
       setRefreshing(true);
       const now = Date.now();
+      const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
       // Check cache for account data
       let spotAccount = null;
@@ -138,13 +139,24 @@ export const useOptimizedDashboardData = (binanceApi) => {
         accountCache.current = { data: spotAccount, timestamp: now };
       }
 
-      // Check cache for orders
+      // Check cache for orders - only fetch spot orders in localhost
       let openOrdersData = null;
-      if (ordersCache.current.data && (now - ordersCache.current.timestamp) < ordersCache.current.ttl) {
-        openOrdersData = ordersCache.current.data;
+      if (isLocalhost) {
+        if (ordersCache.current.data && (now - ordersCache.current.timestamp) < ordersCache.current.ttl) {
+          openOrdersData = ordersCache.current.data;
+        } else {
+          try {
+            openOrdersData = await Promise.resolve(binanceApi.getSpotOnlyOpenOrders());
+            ordersCache.current = { data: openOrdersData, timestamp: now };
+          } catch (orderError) {
+            console.warn('Spot orders fetch failed, using empty array:', orderError.message);
+            openOrdersData = [];
+            ordersCache.current = { data: openOrdersData, timestamp: now };
+          }
+        }
       } else {
-        openOrdersData = await Promise.resolve(binanceApi.getSpotOnlyOpenOrders());
-        ordersCache.current = { data: openOrdersData, timestamp: now };
+        // In production, set spot orders to empty
+        openOrdersData = [];
       }
 
       // Only fetch futures if needed (reduce to 1-2 calls total)
@@ -191,12 +203,13 @@ export const useOptimizedDashboardData = (binanceApi) => {
         setAccountData(updatedAccountData);
       }
 
-      if (openOrdersData) {
-        setOpenOrders(openOrdersData);
-      }
+      // Always set open orders data (empty array if failed)
+      setOpenOrders(openOrdersData || []);
 
     } catch (error) {
       console.error('Fast refresh failed:', error);
+      // Set empty arrays on failure to prevent NaN
+      setOpenOrders([]);
       setError(error.message);
     } finally {
       setRefreshing(false);
@@ -209,16 +222,26 @@ export const useOptimizedDashboardData = (binanceApi) => {
   const refreshOrderData = async () => {
     try {
       setRefreshing(true);
+      const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
       
       // Fetch all order-related data that would be affected by order changes
+      let spotOrdersPromise;
+      if (isLocalhost) {
+        spotOrdersPromise = binanceApi.getSpotOnlyOpenOrders();
+      } else {
+        spotOrdersPromise = Promise.resolve([]);
+      }
+
       const [openOrdersResult, futuresDataResult] = await Promise.allSettled([
-        binanceApi.getSpotOnlyOpenOrders(), // Use spot-only open orders
+        spotOrdersPromise,
         binanceApi.getFuturesOrdersData()
       ]);
 
       // Update spot open orders
       if (openOrdersResult.status === 'fulfilled') {
-        setOpenOrders(openOrdersResult.value);
+        setOpenOrders(openOrdersResult.value || []);
+      } else {
+        setOpenOrders([]);
       }
 
       // Update all futures order data
@@ -237,6 +260,10 @@ export const useOptimizedDashboardData = (binanceApi) => {
     } catch (error) {
       console.error('Order data refresh failed:', error.message);
       setError(error.message);
+      // Set empty arrays on failure
+      setOpenOrders([]);
+      setFuturesOpenOrders([]);
+      setFuturesOrderHistory([]);
     } finally {
       setRefreshing(false);
     }
@@ -251,19 +278,37 @@ export const useOptimizedDashboardData = (binanceApi) => {
       setError(null);
       
       const startTime = Date.now();
+      const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
       // Phase 1: Critical data (parallel fetch) - prioritize order history
+      let spotOrdersPromise, futuresOrdersPromise, spotAccountPromise, futuresAccountPromise;
+
+      if (isLocalhost) {
+        // Fetch spot orders only in localhost
+        spotOrdersPromise = binanceApi.getSpotOnlyOpenOrders();
+      } else {
+        // In production, skip spot orders
+        spotOrdersPromise = Promise.resolve([]);
+      }
+
+      futuresOrdersPromise = binanceApi.getFuturesOrdersData();
+      spotAccountPromise = binanceApi.makeRequest('/api/v3/account');
+      futuresAccountPromise = binanceApi.getFuturesAccountInfo();
+
       const [spotOrders, futuresOrders, spotAccount, futuresAccount] = await Promise.allSettled([
-        binanceApi.getSpotOnlyOpenOrders(), // Fetch orders first
-        binanceApi.getFuturesOrdersData(), // Fetch futures orders first
-        binanceApi.makeRequest('/api/v3/account'),
-        binanceApi.getFuturesAccountInfo()
+        spotOrdersPromise,
+        futuresOrdersPromise,
+        spotAccountPromise,
+        futuresAccountPromise
       ]);
 
       // Update order data immediately after fetch
       if (spotOrders.status === 'fulfilled') {
-        setOpenOrders(spotOrders.value);
+        setOpenOrders(spotOrders.value || []);
+      } else {
+        setOpenOrders([]);
       }
+
       if (futuresOrders.status === 'fulfilled') {
         const futuresData = futuresOrders.value;
         setFuturesOpenOrders(futuresData.openOrders || []);
@@ -323,7 +368,6 @@ export const useOptimizedDashboardData = (binanceApi) => {
       setAccountData(coreAccountData);
 
       // Phase 4: Non-critical data (background fetch - don't block UI)
-      const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
       setTimeout(async () => {
         try {
           if (isLocalhost) {
@@ -356,6 +400,10 @@ export const useOptimizedDashboardData = (binanceApi) => {
     } catch (error) {
       setError(error.message);
       console.error('Full refresh failed:', error.message);
+      // Set empty arrays on failure to prevent NaN
+      setOpenOrders([]);
+      setFuturesOpenOrders([]);
+      setFuturesOrderHistory([]);
     } finally {
       setLoading(false);
     }
