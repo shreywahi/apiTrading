@@ -222,17 +222,15 @@ export const useOptimizedDashboardData = (binanceApi) => {
         openOrdersData = [];
       }
 
-      // Only fetch futures if needed (reduce to 1-2 calls total)
+      // Fetch futures data in both development and production
       let futuresAccount = null;
-      if (isLocalhost) {
-        try {
-          futuresAccount = await Promise.resolve(binanceApi.getFuturesAccountInfo());
-        } catch (futuresError) {
-          console.warn('Futures account fetch failed:', futuresError?.message || 'Unknown error');
-          futuresAccount = null;
-        }
-      } else {
-        // In production, skip futures data to avoid API errors
+      try {
+        console.log('Fetching futures account data...');
+        futuresAccount = await Promise.resolve(binanceApi.getFuturesAccountInfo());
+        console.log('Futures account data fetched:', futuresAccount ? 'success' : 'null');
+      } catch (futuresError) {
+        console.warn('Futures account fetch failed:', futuresError?.message || 'Unknown error');
+        // If futures API fails, continue without futures data
         futuresAccount = null;
       }
 
@@ -257,6 +255,8 @@ export const useOptimizedDashboardData = (binanceApi) => {
         const updatedFuturesData = futuresAccount ? futuresAccount : accountData?.futures;
         const futuresWalletValue = updatedFuturesData ? parseFloat(updatedFuturesData.totalWalletBalance || 0) : 0;
         const totalPortfolioValue = spotWalletValue + futuresWalletValue;
+        
+        console.log('fastRefresh: Portfolio values - Spot:', spotWalletValue, 'Futures:', futuresWalletValue, 'Total:', totalPortfolioValue);
         
         // Update account data with all necessary data for P&L calculations
         const updatedAccountData = enrichAccountDataForPnL(
@@ -308,15 +308,7 @@ export const useOptimizedDashboardData = (binanceApi) => {
 
       const [openOrdersResult, futuresDataResult] = await Promise.allSettled([
         spotOrdersPromise,
-        isLocalhost ? binanceApi.getFuturesOrdersData() : Promise.resolve({
-          openOrders: [],
-          orderHistory: [],
-          positions: [],
-          tradeHistory: [],
-          transactionHistory: [],
-          fundingFees: [],
-          success: false
-        })
+        binanceApi.getFuturesOrdersData()
       ]);
 
       // Update spot open orders
@@ -379,16 +371,9 @@ export const useOptimizedDashboardData = (binanceApi) => {
         spotAccountPromise = Promise.resolve(getMockAccountData());
       }
 
-      futuresOrdersPromise = isLocalhost ? binanceApi.getFuturesOrdersData() : Promise.resolve({
-        openOrders: [],
-        orderHistory: [],
-        positions: [],
-        tradeHistory: [],
-        transactionHistory: [],
-        fundingFees: [],
-        success: false
-      });
-      futuresAccountPromise = isLocalhost ? binanceApi.getFuturesAccountInfo() : Promise.resolve(null);
+      console.log('fullRefresh: Fetching futures data in production');
+      futuresOrdersPromise = binanceApi.getFuturesOrdersData();
+      futuresAccountPromise = binanceApi.getFuturesAccountInfo();
 
       const [spotOrders, futuresOrders, spotAccount, futuresAccount] = await Promise.allSettled([
         spotOrdersPromise,

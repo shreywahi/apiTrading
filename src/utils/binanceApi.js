@@ -433,6 +433,27 @@ class BinanceAPI {
     // Return mock data if in demo mode
     if (this.useMockData) {
       await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Return appropriate mock data based on endpoint
+      if (endpoint === '/fapi/v2/account') {
+        return {
+          totalWalletBalance: "500.00",
+          totalUnrealizedProfit: "25.50",
+          positions: [
+            {
+              symbol: "BTCUSDT",
+              positionAmt: "0.001",
+              entryPrice: "45000.00",
+              markPrice: "46000.00",
+              unrealizedProfit: "10.00",
+              leverage: "10",
+              marginType: "cross"
+            }
+          ]
+        };
+      }
+      
+      // For other endpoints, return empty array
       return [];
     }
 
@@ -1879,6 +1900,51 @@ class BinanceAPI {
   // Get comprehensive futures data for Orders Management section
   async getFuturesOrdersData() {
     try {
+      if (this.useMockData) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return {
+          openOrders: [
+            {
+              symbol: "BTCUSDT",
+              orderId: 123456789,
+              side: "BUY",
+              type: "LIMIT",
+              origQty: "0.001",
+              price: "45000.00",
+              time: Date.now() - 3600000
+            }
+          ],
+          orderHistory: [
+            {
+              symbol: "ETHUSDT",
+              orderId: 123456788,
+              side: "SELL",
+              type: "MARKET",
+              origQty: "0.5",
+              executedQty: "0.5",
+              price: "0.00000000",
+              status: "FILLED",
+              time: Date.now() - 86400000
+            }
+          ],
+          positions: [
+            {
+              symbol: "BTCUSDT",
+              positionAmt: "0.001",
+              entryPrice: "45000.00",
+              markPrice: "46000.00",
+              unrealizedProfit: "10.00",
+              leverage: "10",
+              marginType: "cross"
+            }
+          ],
+          tradeHistory: [],
+          transactionHistory: [],
+          fundingFees: [],
+          success: true
+        };
+      }
+
       const [
         openOrders,
         orderHistory,
@@ -1887,8 +1953,8 @@ class BinanceAPI {
         transactionHistory,
         fundingFees
       ] = await Promise.allSettled([
-        this.getFuturesOpenOrders(),
-        this.getFuturesOrders(null, 500),
+        this.makeFuturesRequest('/fapi/v1/openOrders', 'GET'),
+        this.makeFuturesRequest('/fapi/v1/allOrders', 'GET', { limit: 50 }),
         this.getFuturesPositions(),
         this.getFuturesTradeHistory(null, 50),
         this.getFuturesTransactionHistory(null, 50),
