@@ -62,7 +62,7 @@ const Dashboard = ({ binanceApi, onLogout }) => {
   const {
     accountData,
     orders,
-    openOrders = 0,
+    openOrders,
     futuresOpenOrders,
     futuresOrderHistory,
     positionHistory,
