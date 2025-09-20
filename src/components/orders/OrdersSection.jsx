@@ -6,12 +6,6 @@ import './OrdersSection.css';
 const OrdersSection = ({ 
   activeFuturesTab,
   setActiveFuturesTab,
-  activeSpotTab,
-  setActiveSpotTab,
-  spotOpenOrders,
-  spotOrderHistory,
-  spotTransferHistory,
-  spotConvertHistory,
   futuresOpenOrders,
   futuresOrderHistory,
   tradeHistory,
@@ -22,18 +16,21 @@ const OrdersSection = ({
   SortIndicator,
   formatDate,
   binanceApi,
-  onOrderCancelled
+  onOrderCancelled,
+  activeMarket,
+  setActiveMarket
 }) => {
   const [closingOrders, setClosingOrders] = useState({});
   const [showRateLimitMessage, setShowRateLimitMessage] = useState(false);
   const [optimisticallyRemovedOrders, setOptimisticallyRemovedOrders] = useState(new Set());
-  const [activeMarket, setActiveMarket] = useState('futures'); // New state for market selection
+  // activeMarket and setActiveMarket now come from Dashboard
   const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
   const handleCloseOrder = async (order) => {
     const orderId = order.orderId || order.id;
     const symbol = order.symbol;
-    const market = order.isFutures ? 'futures' : 'spot';
+    // Always use 'futures' for cancel in futures-only mode
+    const market = 'futures';
     
     if (!orderId || !symbol) {
       console.error('Missing order details for cancellation:', order);
@@ -55,7 +52,7 @@ const OrdersSection = ({
     setClosingOrders(prev => ({ ...prev, [orderId]: true }));
 
     try {
-      // Cancel the order
+      // Cancel the order (always futures)
       const result = await binanceApi.cancelOrder(symbol, orderId, market);
 
       // Immediately remove from UI optimistically for instant feedback
@@ -94,19 +91,17 @@ const OrdersSection = ({
   };
 
   // Filter out optimistically removed orders from the display
-  const filteredFuturesOpenOrders = (futuresOpenOrders || []).filter(order => 
-    !optimisticallyRemovedOrders.has(order?.orderId || order?.id)
-  );
-  
-  const filteredSpotOpenOrders = (spotOpenOrders || []).filter(order => 
-    !optimisticallyRemovedOrders.has(order?.orderId || order?.id)
-  );
+  const filteredFuturesOpenOrders = Array.isArray(futuresOpenOrders)
+    ? futuresOpenOrders.filter(order => !optimisticallyRemovedOrders.has(order?.orderId || order?.id))
+    : [];
 
   return (
     <section className="expanded-section orders-section">
+
+
       <div className="section-header">
         <h2>Orders Management</h2>
-        <p className="section-description">Complete trading history from Binance Spot and USD-M Futures markets</p>
+        <p className="section-description">Complete trading history from Binance USD-M Futures markets</p>
         {showRateLimitMessage && (
           <div className="rate-limit-message">
             Rate limit protection active. Please wait 3 seconds between order cancellations to prevent API errors.
@@ -114,143 +109,8 @@ const OrdersSection = ({
         )}
       </div>
       <div className="section-content">
-        {/* Market Selector */}
-        <div className="market-selector">
-          { isLocalhost && (
-            <button 
-              className={`market-btn ${activeMarket === 'spot' ? 'active' : ''}`}
-              onClick={() => setActiveMarket('spot')}
-            >
-              Spot
-            </button>
-          )}
-          <button 
-            className={`market-btn ${activeMarket === 'futures' ? 'active' : ''}`}
-            onClick={() => setActiveMarket('futures')}
-          >
-            USD-M Futures
-          </button>
-        </div>
-
-        {/* Spot Market Tabs */}
-        {activeMarket === 'spot' && (
-          <div className="spot-tabs">
-            <div className="tab-header">
-              <div className="spot-tab-buttons">
-                <button 
-                  className={`spot-tab-btn ${activeSpotTab === 'open-orders' ? 'active' : ''}`}
-                  onClick={() => setActiveSpotTab('open-orders')}
-                >
-                  <Activity size={16} />
-                  <span style={{ marginLeft: '0.5rem' }}>
-                    Open Orders ({filteredSpotOpenOrders.length})
-                  </span>
-                </button>
-                <button 
-                  className={`spot-tab-btn ${activeSpotTab === 'order-history' ? 'active' : ''}`}
-                  onClick={() => setActiveSpotTab('order-history')}
-                >
-                  <History size={16} />
-                  <span style={{ marginLeft: '0.5rem' }}>
-                    Order History ({(spotOrderHistory || []).length})
-                  </span>
-                </button>
-                <button 
-                  className={`spot-tab-btn ${activeSpotTab === 'transfer-history' ? 'active' : ''}`}
-                  onClick={() => setActiveSpotTab('transfer-history')}
-                >
-                  <ArrowUpDown size={16} />
-                  <span style={{ marginLeft: '0.5rem' }}>
-                    Transfer History ({(spotTransferHistory || []).length})
-                  </span>
-                </button>
-                <button 
-                  className={`spot-tab-btn ${activeSpotTab === 'convert-history' ? 'active' : ''}`}
-                  onClick={() => setActiveSpotTab('convert-history')}
-                >
-                  <Coins size={16} />
-                  <span style={{ marginLeft: '0.5rem' }}>
-                    Convert History ({(spotConvertHistory || []).length})
-                  </span>
-                </button>
-              </div>
-            </div>
-            <div className="spot-tab-content">
-              {activeSpotTab === 'open-orders' && (
-                <Fragment>
-                  {(() => {
-                    try {
-                      return (
-                        <SpotOpenOrdersTab 
-                          spotOpenOrders={filteredSpotOpenOrders}
-                          handleSort={handleSort}
-                          sortData={sortData}
-                          SortIndicator={SortIndicator}
-                          formatDate={formatDate}
-                          binanceApi={binanceApi}
-                          onOrderCancelled={onOrderCancelled}
-                          handleCloseOrder={handleCloseOrder}
-                          closingOrders={closingOrders}
-                        />
-                      );
-                    } catch (error) {
-                      console.error('Error rendering SpotOpenOrdersTab:', error);
-                      return (
-                        <div className="error-message" style={{ 
-                          background: '#fee2e2', 
-                          border: '1px solid #fecaca', 
-                          padding: '1rem', 
-                          borderRadius: '8px',
-                          margin: '1rem 0' 
-                        }}>
-                          <h3 style={{ color: '#dc2626', marginTop: 0 }}>Error Loading Spot Open Orders</h3>
-                          <p>There was an error displaying the spot open orders. Please try refreshing the page.</p>
-                          <details style={{ marginTop: '0.5rem' }}>
-                            <summary>Error Details</summary>
-                            <pre style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>
-                              {error.toString()}
-                            </pre>
-                          </details>
-                        </div>
-                      );
-                    }
-                  })()}
-                </Fragment>
-              )}
-              {activeSpotTab === 'order-history' && (
-                <SpotOrderHistoryTab 
-                  spotOrderHistory={spotOrderHistory}
-                  handleSort={handleSort}
-                  sortData={sortData}
-                  SortIndicator={SortIndicator}
-                  formatDate={formatDate}
-                />
-              )}
-              {activeSpotTab === 'transfer-history' && (
-                <SpotTransferHistoryTab 
-                  transactionHistory={spotTransferHistory || []}
-                  handleSort={handleSort}
-                  sortData={sortData}
-                  SortIndicator={SortIndicator}
-                  formatDate={formatDate}
-                />
-              )}
-              {activeSpotTab === 'convert-history' && (
-                <SpotConvertHistoryTab 
-                  convertHistory={spotConvertHistory || []}
-                  handleSort={handleSort}
-                  sortData={sortData}
-                  SortIndicator={SortIndicator}
-                  formatDate={formatDate}
-                />
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Futures Market Tabs */}
-        {activeMarket === 'futures' && (
-          <div className="futures-tabs">
+        {/* Only render futures tabs in production/futures mode */}
+        <div className="futures-tabs">
           <div className="tab-header">
             <div className="futures-tab-buttons">
               <button 
@@ -259,7 +119,7 @@ const OrdersSection = ({
               >
                 <Activity size={16} />
                 <span style={{ marginLeft: '0.5rem' }}>
-                  Open Orders ({filteredFuturesOpenOrders.length})
+                  Open Orders ({Number.isFinite(filteredFuturesOpenOrders.length) ? filteredFuturesOpenOrders.length : 0})
                 </span>
               </button>
               <button 
@@ -380,7 +240,6 @@ const OrdersSection = ({
             )}
           </div>
         </div>
-        )}
       </div>
     </section>
   );
@@ -388,29 +247,18 @@ const OrdersSection = ({
 
 const OpenOrdersTab = ({ futuresOpenOrders, handleSort, sortData, SortIndicator, formatDate, binanceApi, onOrderCancelled, handleCloseOrder, closingOrders }) => {
   // Safety check for props
-  if (!futuresOpenOrders || !Array.isArray(futuresOpenOrders)) {
-    return (
-      <div className="no-data">
-        <p>Loading open orders...</p>
-      </div>
-    );
-  }
-
-  // Safety check for sortData function
-  let sortedOrders;
+  // Always render the table, even if loading or empty
+  let sortedOrders = [];
+  let showError = false;
   try {
-    sortedOrders = sortData ? sortData(futuresOpenOrders, 'open-orders') : futuresOpenOrders;
+    if (Array.isArray(futuresOpenOrders)) {
+      sortedOrders = sortData ? sortData(futuresOpenOrders, 'open-orders') : futuresOpenOrders;
+    } else {
+      showError = true;
+    }
   } catch (error) {
     console.error('Error sorting orders:', error);
-    sortedOrders = futuresOpenOrders;
-  }
-
-  if (futuresOpenOrders.length === 0) {
-    return (
-      <div className="no-data">
-        <p>No open futures orders found</p>
-      </div>
-    );
+    showError = true;
   }
 
   return (
@@ -446,12 +294,21 @@ const OpenOrdersTab = ({ futuresOpenOrders, handleSort, sortData, SortIndicator,
           </tr>
         </thead>
         <tbody>
-          {sortedOrders.map((order, index) => {
-            // Safety check for order object
+          {showError ? (
+            <tr>
+              <td colSpan="9" style={{ textAlign: 'center', color: '#dc2626' }}>
+                Error loading open orders. Please check your connection or try again later.
+              </td>
+            </tr>
+          ) : sortedOrders.length === 0 ? (
+            <tr>
+              <td colSpan="9" style={{ textAlign: 'center', color: '#888' }}>
+                No open futures orders found
+              </td>
+            </tr>
+          ) : sortedOrders.map((order, index) => {
             if (!order) return null;
-            
             const orderId = order.orderId || order.id || index;
-            
             return (
               <tr key={orderId}>
                 <td>{formatDate(order.time)}</td>

@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 
 // Custom hooks
-import { useDashboardData } from '../hooks/useDashboardData';
-import { useOptimizedDashboardData } from '../hooks/useOptimizedDashboardData';
+import { useUltraOptimizedDashboardData } from '../hooks/useUltraOptimizedDashboardData';
 import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import { useCurrency } from '../hooks/useCurrency';
 import { useSorting } from '../hooks/useSorting';
@@ -31,10 +30,9 @@ const Dashboard = ({ binanceApi, onLogout }) => {
   const [hideSmallBalances, setHideSmallBalances] = useState(true);
   const [activeWalletTab, setActiveWalletTab] = useState('futures');
   const [activeFuturesTab, setActiveFuturesTab] = useState('open-orders');
-  const [activeSpotTab, setActiveSpotTab] = useState('open-orders');
   const [darkMode, setDarkMode] = useState(true);
-  const [useOptimizedFetch, setUseOptimizedFetch] = useState(true);
-  const [useUltraOptimization, setUseUltraOptimization] = useState(false);
+  // Market mode: 'futures' (production) or 'spot' (dev)
+  const marketMode = (import.meta.env.VITE_MARKET_MODE || 'futures').toLowerCase();
 
   // Performance optimization - extend API with optimizations on first load
   useEffect(() => {
@@ -55,29 +53,24 @@ const Dashboard = ({ binanceApi, onLogout }) => {
     }
   }, [binanceApi]);
 
-  // Choose data fetching strategy based on optimization level  
-  const dataHook = useOptimizedFetch ? useOptimizedDashboardData : useDashboardData;
-  
-  // Custom hooks
+  // Only use futures data and hooks in futures mode
+  const [ordersSectionKey, setOrdersSectionKey] = useState(Date.now());
+  const [activeMarket, setActiveMarket] = useState('futures');
   const {
     accountData,
-    orders,
-    openOrders = 0,
     futuresOpenOrders,
     futuresOrderHistory,
     positionHistory,
     tradeHistory,
     transactionHistory,
     fundingFeeHistory,
-    spotTransferHistory,
-    spotConvertHistory,
     loading,
     error,
     refreshing,
     fetchData,
     fastRefresh,
     refreshOrderData
-  } = dataHook(binanceApi);
+  } = useUltraOptimizedDashboardData(binanceApi);
 
   const { sortConfig, handleSort, sortData, SortIndicator } = useSorting();
   
@@ -87,7 +80,17 @@ const Dashboard = ({ binanceApi, onLogout }) => {
     handleManualRefresh,
     toggleAutoRefresh,
     setAutoRefreshActive
-  } = useAutoRefresh(fetchData, !loading, fastRefresh); // Pass fastRefresh function
+  } = useAutoRefresh(
+    async () => {
+      await fastRefresh(activeMarket);
+      setOrdersSectionKey(Date.now());
+    },
+    !loading,
+    async () => {
+      await fastRefresh(activeMarket);
+      setOrdersSectionKey(Date.now());
+    }
+  );
 
   const {
     displayCurrency,
@@ -98,7 +101,9 @@ const Dashboard = ({ binanceApi, onLogout }) => {
 
   // Initial data fetch
   useEffect(() => {
-    fetchData();
+    if (typeof fastRefresh === 'function') {
+      fastRefresh('futures');
+    }
     fetchExchangeRates();
   }, []);
 
@@ -223,11 +228,11 @@ const Dashboard = ({ binanceApi, onLogout }) => {
       <div className="dashboard-content">
         <AccountOverview 
           totalValue={totalValue}
-          spotValue={spotValue}
+          spotValue={0}
           futuresValue={futuresValue}
           totalPnL={totalPnL}
-          openOrdersCount={openOrders.length + futuresOpenOrders.length}
-          totalOrdersCount={orders.length + futuresOrderHistory.length}
+          openOrdersCount={Array.isArray(futuresOpenOrders) ? futuresOpenOrders.length : 0}
+          totalOrdersCount={Array.isArray(futuresOrderHistory) ? futuresOrderHistory.length : 0}
           formatCurrency={formatCurrency}
           calculatePnL={() => calculatePnL(accountData)}
           onToggleSection={toggleSection}
@@ -267,14 +272,9 @@ const Dashboard = ({ binanceApi, onLogout }) => {
 
         {expandedSection === 'orders' && (
           <OrdersSection 
+            key={ordersSectionKey}
             activeFuturesTab={activeFuturesTab}
             setActiveFuturesTab={setActiveFuturesTab}
-            activeSpotTab={activeSpotTab}
-            setActiveSpotTab={setActiveSpotTab}
-            spotOpenOrders={openOrders}
-            spotOrderHistory={orders}
-            spotTransferHistory={spotTransferHistory}
-            spotConvertHistory={spotConvertHistory}
             futuresOpenOrders={futuresOpenOrders}
             futuresOrderHistory={futuresOrderHistory}
             tradeHistory={tradeHistory}
@@ -285,14 +285,14 @@ const Dashboard = ({ binanceApi, onLogout }) => {
             SortIndicator={SortIndicator}
             formatDate={formatDate}
             binanceApi={binanceApi}
+            activeMarket={'futures'}
+            setActiveMarket={() => {}}
             onOrderCancelled={async (orderId) => {
-              // Clear cache for fresh data on next refresh
               if (binanceApi.clearPriceCache) {
                 binanceApi.clearPriceCache();
               }
-
-              // Force a full refresh after cancellation to guarantee order history updates
-              await fetchData();
+              await fastRefresh('futures');
+              setOrdersSectionKey(Date.now());
             }}
           />
         )}
@@ -304,16 +304,14 @@ const Dashboard = ({ binanceApi, onLogout }) => {
               formatCurrency={formatCurrency}
               binanceApi={binanceApi}
               onOrderPlaced={() => {
-                // Clear cache to ensure fresh data and trigger order refresh
                 if (binanceApi.clearPriceCache) {
                   binanceApi.clearPriceCache();
                 }
-                // Immediate order data refresh to update UI quickly
-                refreshOrderData();
-                // Secondary refresh after delay to ensure Binance has processed the order
+                // Use fastRefresh to update order data
+                if (typeof fastRefresh === 'function') fastRefresh('futures');
                 setTimeout(() => {
-                  refreshOrderData();
-                }, 2000); // 2 second delay for more reliable updates
+                  if (typeof fastRefresh === 'function') fastRefresh('futures');
+                }, 2000);
               }}
             />
           </TradingErrorBoundary>
