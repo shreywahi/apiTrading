@@ -278,6 +278,7 @@ const Dashboard = ({ binanceApi, onLogout }) => {
             hideSmallBalances={hideSmallBalances}
             setHideSmallBalances={setHideSmallBalances}
             formatCurrency={formatCurrency}
+            handleClosePosition={handleClosePosition}
           />
         )}
 

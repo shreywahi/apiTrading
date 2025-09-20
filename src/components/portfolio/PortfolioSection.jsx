@@ -1,3 +1,4 @@
+import React from "react";
 import { Eye, EyeOff } from 'lucide-react';
 import './PortfolioSection.css';
 
@@ -11,9 +12,11 @@ const PortfolioSection = ({
   setActiveWalletTab,
   hideSmallBalances,
   setHideSmallBalances,
-  formatCurrency
+  formatCurrency,
+  handleClosePosition
 }) => {
   const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+  const [closingSymbol, setClosingSymbol] = React.useState(null);
   return (
     <section className="expanded-section portfolio-section">
       <div className="section-header">
@@ -95,6 +98,9 @@ const PortfolioSection = ({
                   futuresAccount={accountData?.futuresAccount}
                   currentPrices={accountData?.currentPrices}
                   hideSmallBalances={hideSmallBalances}
+                  closingSymbol={closingSymbol}
+                  setClosingSymbol={setClosingSymbol}
+                  handleClosePosition={handleClosePosition}
                 />
               )}
               {activeWalletTab === 'futures' && (
@@ -173,7 +179,7 @@ const SpotWallet = ({ balances, currentPrices, hideSmallBalances }) => {
   );
 };
 
-const FuturesWallet = ({ futuresAccount, currentPrices, hideSmallBalances }) => {
+const FuturesWallet = ({ futuresAccount, currentPrices, hideSmallBalances, closingSymbol, setClosingSymbol, handleClosePosition }) => {
   return (
     <div className="wallet-content">
       <div className="wallet-header">
@@ -223,22 +229,40 @@ const FuturesWallet = ({ futuresAccount, currentPrices, hideSmallBalances }) => 
       {/* Futures Positions - Only show when hideSmallBalances is false (Show Open Positions is active) */}
       {!hideSmallBalances && futuresAccount?.positions
         ?.filter(pos => parseFloat(pos.positionAmt) !== 0)
-        ?.map((position, index) => (
-          <div key={`pos-${position.symbol}`} className="wallet-item futures-position">
-            <div className="asset-info">
-              <span className="asset-symbol">{position.symbol}</span>
-              <small style={{color: '#718096'}}>Position</small>
+        ?.map((position, index) => {
+          const isClosing = closingSymbol === position.symbol;
+          return (
+            <div key={`pos-${position.symbol}`} className="wallet-item futures-position">
+              <div className="asset-info" style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%'}}>
+                <span className="asset-symbol" style={{fontWeight: 700, marginBottom: '0.3em'}}>{position.symbol}</span>
+                <button
+                  className="close-position-btn"
+                  disabled={isClosing}
+                  onClick={async () => {
+                    if (typeof handleClosePosition === 'function') {
+                      setClosingSymbol(position.symbol);
+                      try {
+                        await handleClosePosition(position);
+                      } finally {
+                        setClosingSymbol(null);
+                      }
+                    }
+                  }}
+                >
+                  {isClosing ? 'Closing...' : 'Close Position'}
+                </button>
+              </div>
+              <span className="balance-amount">{parseFloat(position.positionAmt).toFixed(4)}</span>
+              <span className={`balance-amount ${parseFloat(position.unrealizedProfit) >= 0 ? 'positive' : 'negative'}`}>
+                {parseFloat(position.unrealizedProfit) >= 0 ? '+' : ''}{parseFloat(position.unrealizedProfit).toFixed(2)}
+              </span>
+              <span className="balance-amount">${parseFloat(position.notional).toFixed(2)}</span>
+              <span className="usd-value">
+                ${Math.abs(parseFloat(position.notional)).toFixed(2)}
+              </span>
             </div>
-            <span className="balance-amount">{parseFloat(position.positionAmt).toFixed(4)}</span>
-            <span className={`balance-amount ${parseFloat(position.unrealizedProfit) >= 0 ? 'positive' : 'negative'}`}>
-              {parseFloat(position.unrealizedProfit) >= 0 ? '+' : ''}{parseFloat(position.unrealizedProfit).toFixed(2)}
-            </span>
-            <span className="balance-amount">${parseFloat(position.notional).toFixed(2)}</span>
-            <span className="usd-value">
-              ${Math.abs(parseFloat(position.notional)).toFixed(2)}
-            </span>
-          </div>
-        ))}
+          );
+        })}
     </div>
   );
 };
