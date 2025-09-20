@@ -1,6 +1,7 @@
 import { RefreshCw, LogOut, Activity, Sun, Moon, Plus } from 'lucide-react';
 import './DashboardHeader.css';
 import logo from '../logo.jpg';
+import teamImg from '../team.jpg';
 
 const DashboardHeader = ({
   darkMode,
@@ -36,6 +37,11 @@ const DashboardHeader = ({
               <Activity size={10} />
               {autoRefreshActive ? 'Live' : 'Paused'}
             </span>
+          </div>
+
+          {/* Center section: Team image */}
+          <div className="header-center">
+            <img src={teamImg} alt="Team" className="header-team-img" />
           </div>
 
           {/* Right section: Add API and Logout */}

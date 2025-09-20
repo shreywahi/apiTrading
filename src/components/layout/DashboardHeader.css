@@ -108,7 +108,44 @@
   font-weight: 600;
 }
 
-/* Center section removed - buttons moved to mobile bottom bar only */
+/* Center section */
+.header-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.header-team-img {
+  max-width: 120px;
+  max-height: 60px;
+  border-radius: 10px;
+  object-fit: cover;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  margin: 0 1.5rem;
+  background: #fff;
+  transition: max-width 0.2s, max-height 0.2s;
+}
+
+@media (max-width: 900px) {
+  .header-team-img {
+    max-width: 80px;
+    max-height: 40px;
+    margin: 0 0.5rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .header-center {
+    flex: none;
+    margin: 0 0.2rem;
+  }
+  .header-team-img {
+    max-width: 48px;
+    max-height: 24px;
+    margin: 0 0.2rem;
+  }
+}
 
 /* Right section */
 .header-right {

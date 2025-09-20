@@ -11,7 +11,8 @@ const PnLSection = ({
   positionHistory,
   handleSort,
   sortData,
-  SortIndicator 
+  SortIndicator,
+  onClosePosition
 }) => {
   const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
   return (
@@ -27,6 +28,7 @@ const PnLSection = ({
               handleSort={handleSort}
               sortData={sortData}
               SortIndicator={SortIndicator}
+              onClosePosition={onClosePosition}
             />
           )}
 
@@ -62,7 +64,8 @@ const PnLSection = ({
   );
 };
 
-const CurrentPositions = ({ positionHistory, handleSort, sortData, SortIndicator }) => {
+const CurrentPositions = ({ positionHistory, handleSort, sortData, SortIndicator, onClosePosition }) => {
+  const [closingSymbol, setClosingSymbol] = React.useState(null);
   return (
     <div className="current-positions">
       <h4>Current Positions ({positionHistory.length} positions)</h4>
@@ -144,7 +147,7 @@ const CurrentPositions = ({ positionHistory, handleSort, sortData, SortIndicator
               const roe = parseFloat(position.roe || position.percentage || 0);
               const roi = parseFloat(position.roi || 0);
               const leverage = position.leverage || '1';
-              
+              const isClosing = closingSymbol === position.symbol;
               return (
                 <tr key={`${position.symbol}-${index}`}>
                   <td className="symbol">{position.symbol}</td>
@@ -164,6 +167,24 @@ const CurrentPositions = ({ positionHistory, handleSort, sortData, SortIndicator
                     {isNaN(roi) ? '0.00' : roi.toFixed(2)}%
                   </td>
                   <td>{leverage}x</td>
+                  <td>
+                    <button
+                      className="close-position-btn"
+                      disabled={isClosing}
+                      onClick={async () => {
+                        if (onClosePosition) {
+                          setClosingSymbol(position.symbol);
+                          try {
+                            await onClosePosition(position);
+                          } finally {
+                            setClosingSymbol(null);
+                          }
+                        }
+                      }}
+                    >
+                      {isClosing ? 'Closing...' : 'Close Position'}
+                    </button>
+                  </td>
                 </tr>
               );
             })}

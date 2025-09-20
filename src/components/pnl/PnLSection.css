@@ -213,6 +213,31 @@
   color: #e53e3e;
 }
 
+.close-position-btn {
+  background: linear-gradient(90deg, #f43f5e 0%, #f59e42 100%);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.4em 1.2em;
+  font-weight: 600;
+  font-size: 1em;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(244,63,94,0.08);
+  transition: background 0.2s, box-shadow 0.2s, opacity 0.2s;
+  margin-left: 0.5em;
+}
+
+.close-position-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #aaa;
+}
+
+.close-position-btn:hover:not(:disabled) {
+  background: linear-gradient(90deg, #f43f5e 0%, #f59e42 80%);
+  box-shadow: 0 4px 16px rgba(244,63,94,0.15);
+}
+
 /* Dark mode adjustments */
 .dark-mode .pnl-card h3 {
   color: #cbd5e0;

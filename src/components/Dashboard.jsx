@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 // Custom hooks
 import { useUltraOptimizedDashboardData } from '../hooks/useUltraOptimizedDashboardData';
@@ -25,6 +25,10 @@ import './DashboardLayout.css';
 import './CosmicBackground.css';
 
 const Dashboard = ({ binanceApi, onLogout }) => {
+  // Refs for legacy handler
+  const binanceApiRef = useRef(binanceApi);
+  const fastRefreshRef = useRef(null);
+  useEffect(() => { binanceApiRef.current = binanceApi; }, [binanceApi]);
   // UI State
   const [expandedSection, setExpandedSection] = useState('portfolio');
   const [hideSmallBalances, setHideSmallBalances] = useState(true);
@@ -71,6 +75,7 @@ const Dashboard = ({ binanceApi, onLogout }) => {
     fastRefresh,
     refreshOrderData
   } = useUltraOptimizedDashboardData(binanceApi);
+  useEffect(() => { fastRefreshRef.current = fastRefresh; }, [fastRefresh]);
 
   const { sortConfig, handleSort, sortData, SortIndicator } = useSorting();
   
@@ -168,6 +173,27 @@ const Dashboard = ({ binanceApi, onLogout }) => {
     setExpandedSection(sectionName);
   };
 
+  // Handler to close a position, used by PnLSection
+  async function handleClosePosition(position) {
+    if (!binanceApi || !position) return;
+    const symbol = position.symbol;
+    const amt = Math.abs(parseFloat(position.positionAmt));
+    if (!symbol || !amt || amt === 0) return;
+    const side = parseFloat(position.positionAmt) > 0 ? 'SELL' : 'BUY';
+    try {
+      await binanceApi.placeFuturesOrder({
+        symbol,
+        side,
+        type: 'MARKET',
+        quantity: amt,
+        reduceOnly: true
+      });
+      if (typeof fastRefresh === 'function') fastRefresh();
+    } catch (e) {
+      window.alert('Failed to close position: ' + (e?.message || e));
+    }
+  }
+
   if (loading) {
     return <LoadingSpinner />;
   }
@@ -255,6 +281,7 @@ const Dashboard = ({ binanceApi, onLogout }) => {
           />
         )}
 
+
         {expandedSection === 'pnl' && (
           <PnLSection 
             totalPnL={totalPnL}
@@ -267,6 +294,7 @@ const Dashboard = ({ binanceApi, onLogout }) => {
             handleSort={handleSort}
             sortData={sortData}
             SortIndicator={SortIndicator}
+            onClosePosition={handleClosePosition}
           />
         )}
 
