@@ -16,8 +16,9 @@ const DashboardHeader = ({
 }) => {
   
   const handleOpenApiForm = () => {
-    // Open the API key form in a new tab
-    window.open(window.location.origin, '_blank');
+    // Open the API key form in a new tab, respecting subdirectory (e.g. /apiTrading/)
+    const base = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/');
+    window.open(base, '_blank');
   };
 
   return (
