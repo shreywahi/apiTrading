@@ -254,7 +254,7 @@ const Dashboard = ({ binanceApi, onLogout }) => {
       <div className="dashboard-content">
         <AccountOverview 
           totalValue={totalValue}
-          spotValue={0}
+          spotValue={spotValue}
           futuresValue={futuresValue}
           totalPnL={totalPnL}
           openOrdersCount={Array.isArray(futuresOpenOrders) ? futuresOpenOrders.length : 0}
