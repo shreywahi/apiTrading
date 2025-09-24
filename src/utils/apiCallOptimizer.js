@@ -88,28 +88,16 @@ class ApiCallOptimizer {
       // Phase 1: Critical account data (parallel execution)
       const futuresAccount = await this.binanceApi.getFuturesAccountInfo();
 
-      // Dynamically fetch prices for all open position assets
-      let positionAssets = [];
-      if (futuresAccount && Array.isArray(futuresAccount.positions)) {
-        positionAssets = futuresAccount.positions
-          .filter(pos => parseFloat(pos.positionAmt) !== 0)
-          .map(pos => pos.symbol.replace('USDT', ''));
-      }
-      // Fallback to essential assets if none found
-      if (positionAssets.length === 0) {
-        positionAssets = ['BTC', 'ETH', 'BNB'];
-      }
-      // Remove duplicates
-      positionAssets = Array.from(new Set(positionAssets));
 
-      const priceData = await this.getBatchPrices(positionAssets);
+      // Skipping batch price fetch as requested; use empty priceData
+      const priceData = {};
 
       // Calculate portfolio metrics using only futures data
       const portfolioData = this.calculatePortfolioMetrics(null, futuresAccount, priceData);
 
-      this.setCachedData(cacheKey, portfolioData, 'hot', 15000);
-      this.updateMetrics(startTime, 1, positionAssets.length); // Only futures calls saved
-      return portfolioData;
+  this.setCachedData(cacheKey, portfolioData, 'hot', 15000);
+  this.updateMetrics(startTime, 1, 1); // Only futures calls saved, no price calls
+  return portfolioData;
 
     } catch (error) {
       console.error('Optimized portfolio data fetch failed:', error);
