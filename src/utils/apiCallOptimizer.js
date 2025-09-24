@@ -86,39 +86,29 @@ class ApiCallOptimizer {
     
     try {
       // Phase 1: Critical account data (parallel execution)
-      const [spotAccount, futuresAccount] = await Promise.allSettled([
-        this.optimizedAccountRequest('/api/v3/account'),
-        this.binanceApi.getFuturesAccountInfo() // Use the method that calculates P&L
-      ]);
+      const futuresAccount = await this.binanceApi.getFuturesAccountInfo();
 
-      // Phase 2: Essential asset detection and batch price fetching
-      let essentialAssets = new Set(['BTC', 'ETH', 'BNB']); // Always include major pairs
-      
-      if (spotAccount.status === 'fulfilled' && spotAccount.value?.balances) {
-        spotAccount.value.balances.forEach(balance => {
-          const total = parseFloat(balance.free) + parseFloat(balance.locked);
-          if (total > 0.001 && !['USDT', 'BUSD', 'USDC', 'FDUSD'].includes(balance.asset)) {
-            essentialAssets.add(balance.asset);
-          }
-        });
+      // Dynamically fetch prices for all open position assets
+      let positionAssets = [];
+      if (futuresAccount && Array.isArray(futuresAccount.positions)) {
+        positionAssets = futuresAccount.positions
+          .filter(pos => parseFloat(pos.positionAmt) !== 0)
+          .map(pos => pos.symbol.replace('USDT', ''));
       }
+      // Fallback to essential assets if none found
+      if (positionAssets.length === 0) {
+        positionAssets = ['BTC', 'ETH', 'BNB'];
+      }
+      // Remove duplicates
+      positionAssets = Array.from(new Set(positionAssets));
 
-      // Optimized single batch price call instead of multiple individual calls
-      const priceData = await this.getBatchPrices(Array.from(essentialAssets));
+      const priceData = await this.getBatchPrices(positionAssets);
 
-      // Phase 3: Calculate portfolio metrics efficiently
-      const portfolioData = this.calculatePortfolioMetrics(
-        spotAccount.status === 'fulfilled' ? spotAccount.value : null,
-        futuresAccount.status === 'fulfilled' ? futuresAccount.value : null,
-        priceData
-      );
+      // Calculate portfolio metrics using only futures data
+      const portfolioData = this.calculatePortfolioMetrics(null, futuresAccount, priceData);
 
-      // Cache the result with appropriate TTL
       this.setCachedData(cacheKey, portfolioData, 'hot', 15000);
-      
-      // Update performance metrics
-      this.updateMetrics(startTime, 1, 8); // Saved 8 potential API calls
-      
+      this.updateMetrics(startTime, 1, positionAssets.length); // Only futures calls saved
       return portfolioData;
 
     } catch (error) {
@@ -144,27 +134,20 @@ class ApiCallOptimizer {
 
     try {
       // Parallel execution of essential order queries
-      const [spotOrders, futuresOrders, openOrders, futuresOpenOrders] = await Promise.allSettled([
-        this.optimizedOrderRequest('/api/v3/allOrders', { limit: maxOrders }),
-        this.optimizedFuturesOrderRequest('/fapi/v1/allOrders', { limit: maxOrders }),
-        this.optimizedOrderRequest('/api/v3/openOrders'),
-        this.optimizedFuturesOrderRequest('/fapi/v1/openOrders')
-      ]);
+  const [futuresOrders, futuresOpenOrders] = await Promise.allSettled([
+    this.optimizedFuturesOrderRequest('/fapi/v1/allOrders', { limit: maxOrders }),
+    this.optimizedFuturesOrderRequest('/fapi/v1/openOrders')
+  ]);
 
-      const orderData = {
-        spotOrders: spotOrders.status === 'fulfilled' ? spotOrders.value : undefined,
-        futuresOrders: futuresOrders.status === 'fulfilled' ? futuresOrders.value : undefined,
-        openOrders: openOrders.status === 'fulfilled' ? openOrders.value : undefined,
-        futuresOpenOrders: futuresOpenOrders.status === 'fulfilled' ? futuresOpenOrders.value : undefined,
-        lastUpdated: Date.now()
-      };
+  const orderData = {
+    futuresOrders: futuresOrders.status === 'fulfilled' ? futuresOrders.value : undefined,
+    futuresOpenOrders: futuresOpenOrders.status === 'fulfilled' ? futuresOpenOrders.value : undefined,
+    lastUpdated: Date.now()
+  };
 
-      // Cache with longer TTL since orders don't change as frequently
-      this.setCachedData(cacheKey, orderData, 'warm', 60000);
-      
-      this.updateMetrics(startTime, 1, 8); // Saved 8 potential API calls
-      
-      return orderData;
+  this.setCachedData(cacheKey, orderData, 'warm', 60000);
+  this.updateMetrics(startTime, 1, 4); // Only futures calls saved
+  return orderData;
 
     } catch (error) {
       console.error('Optimized order data fetch failed:', error);
@@ -320,28 +303,13 @@ class ApiCallOptimizer {
   /**
    * Calculate portfolio metrics efficiently
    */
-  calculatePortfolioMetrics(spotAccount, futuresAccount, priceData) {
-    let spotWalletValue = 0;
+  calculatePortfolioMetrics(_spotAccount, futuresAccount, priceData) {
     let futuresWalletValue = 0;
-
-    // Calculate spot wallet value
-    if (spotAccount?.balances) {
-      spotAccount.balances.forEach(balance => {
-        const total = parseFloat(balance.free) + parseFloat(balance.locked);
-        if (total > 0.001) {
-          if (['USDT', 'BUSD', 'USDC', 'FDUSD'].includes(balance.asset)) {
-            spotWalletValue += total;
-          } else if (priceData[balance.asset]) {
-            spotWalletValue += total * priceData[balance.asset];
-          }
-        }
-      });
-    }
 
     // Calculate futures wallet value
     if (futuresAccount) {
       futuresWalletValue = parseFloat(futuresAccount.totalWalletBalance || 0);
-      
+
       // Ensure totalUnrealizedPnl is calculated if not already present
       if (!futuresAccount.totalUnrealizedPnl && futuresAccount.positions) {
         let totalUnrealizedPnl = 0;
@@ -351,16 +319,13 @@ class ApiCallOptimizer {
           }
         });
         futuresAccount.totalUnrealizedPnl = totalUnrealizedPnl;
-      } else if (futuresAccount.totalUnrealizedPnl !== undefined) {
       }
     }
 
     return {
-      spotAccount,
       futuresAccount,
-      spotWalletValue,
       futuresWalletValue,
-      totalPortfolioValue: spotWalletValue + futuresWalletValue,
+      totalPortfolioValue: futuresWalletValue,
       priceData,
       lastUpdated: Date.now(),
       optimized: true

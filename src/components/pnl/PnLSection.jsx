@@ -1,24 +1,18 @@
-import React from 'react';
 import './PnLSection.css';
 
-const PnLSection = ({ 
-  totalPnL, 
-  spotValue, 
+const PnLSection = ({
   futuresValue, 
   accountData,
-  formatCurrency, 
-  calculatePnL,
   positionHistory,
   handleSort,
   sortData,
   SortIndicator,
   onClosePosition
 }) => {
-  const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
   return (
     <section className="expanded-section pnl-section">
       <div className="section-header">
-        <h2>Profit & Loss Overview</h2>
+        <h2>Profit & Loss</h2>
       </div>
       <div className="section-content">
         <div className="pnl-summary">
@@ -31,17 +25,8 @@ const PnLSection = ({
               onClosePosition={onClosePosition}
             />
           )}
-
           <div className="pnl-breakdown">
             <h4>P&L and Balance Breakdown</h4>
-            {isLocalhost && (
-              <div className="pnl-item">
-                <span>Spot Balance:</span>
-                <span className={spotValue >= 0 ? 'positive' : 'negative'}>
-                  ${spotValue.toFixed(2)}
-                </span>
-              </div>
-            )}
             <div className="pnl-item">
               <span>USD-M Futures Balance:</span>
               <span className={futuresValue >= 0 ? 'positive' : 'negative'}>
@@ -65,9 +50,11 @@ const PnLSection = ({
 };
 
 const CurrentPositions = ({ positionHistory, handleSort, sortData, SortIndicator, onClosePosition }) => {
+  // Only show open positions (positionAmt !== 0)
+  const openPositions = positionHistory.filter(position => Math.abs(parseFloat(position.positionAmt)) > 0);
   return (
     <div className="current-positions">
-      <h4>Current Positions ({positionHistory.length} positions)</h4>
+      <h4>Current Positions ({openPositions.length} positions)</h4>
       <p className="futures-description">
         Current open positions in USD-M Futures (click column headers to sort)
       </p>
@@ -105,10 +92,10 @@ const CurrentPositions = ({ positionHistory, handleSort, sortData, SortIndicator
               </th>
               <th 
                 className="sortable" 
-                onClick={() => handleSort('position-history', 'markPrice')}
+                onClick={() => handleSort('position-history', 'liquidationPrice')}
               >
-                Mark Price
-                <SortIndicator tableType="position-history" column="markPrice" />
+                Liq. Price
+                <SortIndicator tableType="position-history" column="liquidationPrice" />
               </th>
               <th 
                 className="sortable" 
@@ -119,55 +106,52 @@ const CurrentPositions = ({ positionHistory, handleSort, sortData, SortIndicator
               </th>
               <th 
                 className="sortable" 
-                onClick={() => handleSort('position-history', 'roe')}
-              >
-                ROE%
-                <SortIndicator tableType="position-history" column="roe" />
-              </th>
-              <th 
-                className="sortable" 
-                onClick={() => handleSort('position-history', 'roi')}
-              >
-                ROI%
-                <SortIndicator tableType="position-history" column="roi" />
-              </th>
-              <th 
-                className="sortable" 
                 onClick={() => handleSort('position-history', 'leverage')}
               >
                 Leverage
                 <SortIndicator tableType="position-history" column="leverage" />
               </th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
-            {sortData(positionHistory, 'position-history').map((position, index) => {
-              const unrealizedPnl = parseFloat(position.unrealizedProfit || position.unRealizedProfit || 0);
-              const roe = parseFloat(position.roe || position.percentage || 0);
-              const roi = parseFloat(position.roi || 0);
-              const leverage = position.leverage || '1';
-              return (
-                <tr key={`${position.symbol}-${index}`}>
-                  <td className="symbol">{position.symbol}</td>
-                  <td className={`side side-${parseFloat(position.positionAmt) > 0 ? 'long' : 'short'}`}>
-                    {parseFloat(position.positionAmt) > 0 ? 'LONG' : 'SHORT'}
-                  </td>
-                  <td>{Math.abs(parseFloat(position.positionAmt)).toFixed(4)}</td>
-                  <td>{parseFloat(position.entryPrice).toFixed(4)}</td>
-                  <td>{parseFloat(position.markPrice).toFixed(4)}</td>
-                  <td className={unrealizedPnl >= 0 ? 'profit' : 'loss'}>
-                    {isNaN(unrealizedPnl) ? '0.0000' : unrealizedPnl.toFixed(4)} USDT
-                  </td>
-                  <td className={roe >= 0 ? 'profit' : 'loss'}>
-                    {isNaN(roe) ? '0.00' : roe.toFixed(2)}%
-                  </td>
-                  <td className={roi >= 0 ? 'profit' : 'loss'}>
-                    {isNaN(roi) ? '0.00' : roi.toFixed(2)}%
-                  </td>
-                  <td>{leverage}x</td>
-                </tr>
-              );
-            })}
+            {sortData(openPositions, 'position-history')
+              .map((position, index) => {
+                const unrealizedPnl = parseFloat(position.unrealizedProfit || position.unRealizedProfit || 0);
+                const leverage = position.leverage || '1';
+                // Try multiple possible keys for liquidation price
+                let liqPrice = null;
+                if (position.liquidationPrice !== undefined && position.liquidationPrice !== null) {
+                  liqPrice = parseFloat(position.liquidationPrice);
+                } else if (position.liqPrice !== undefined && position.liqPrice !== null) {
+                  liqPrice = parseFloat(position.liqPrice);
+                }
+                if (liqPrice === 0) liqPrice = null;
+                return (
+                  <tr key={`${position.symbol}-${index}`}>
+                    <td className="symbol">{position.symbol}</td>
+                    <td className={`side side-${parseFloat(position.positionAmt) > 0 ? 'long' : 'short'}`}>
+                      {parseFloat(position.positionAmt) > 0 ? 'LONG' : 'SHORT'}
+                    </td>
+                    <td>{Math.abs(parseFloat(position.positionAmt)).toFixed(4)}</td>
+                    <td>{parseFloat(position.entryPrice).toFixed(4)}</td>
+                    <td className="centered">{liqPrice !== null && !isNaN(liqPrice) ? liqPrice.toFixed(2) : '-'}</td>
+                    <td className={unrealizedPnl >= 0 ? 'profit' : 'loss'}>
+                      {isNaN(unrealizedPnl) ? '0.0000' : unrealizedPnl.toFixed(4)} USDT
+                    </td>
+                    <td>{leverage}x</td>
+                    <td>
+                      <button
+                        className="close-position-btn"
+                        onClick={() => onClosePosition && onClosePosition(position)}
+                        style={{ padding: '4px 10px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                      >
+                        Close Position
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
           </tbody>
         </table>
       </div>

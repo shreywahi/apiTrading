@@ -19,7 +19,7 @@ const ApiKeyForm = ({ onSubmit, loading }) => {
       <div className="api-key-form">
         <div className="form-header">
           <Key className="form-icon" size={32} />
-          <h2>API Authentication (v1.7.0)</h2>
+          <h2>API Authentication (v1.8.0)</h2>
           <p>Enter your API credentials to view your data</p>
         </div>
         

@@ -73,7 +73,8 @@ const Dashboard = ({ binanceApi, onLogout }) => {
     refreshing,
     fetchData,
     fastRefresh,
-    refreshOrderData
+    refreshOrderData,
+    refresh
   } = useUltraOptimizedDashboardData(binanceApi);
   useEffect(() => { fastRefreshRef.current = fastRefresh; }, [fastRefresh]);
 
@@ -87,12 +88,12 @@ const Dashboard = ({ binanceApi, onLogout }) => {
     setAutoRefreshActive
   } = useAutoRefresh(
     async () => {
-      await fastRefresh(activeMarket);
+  await refresh();
       setOrdersSectionKey(Date.now());
     },
     !loading,
     async () => {
-      await fastRefresh(activeMarket);
+  await refresh();
       setOrdersSectionKey(Date.now());
     }
   );
@@ -131,7 +132,6 @@ const Dashboard = ({ binanceApi, onLogout }) => {
         }}>
           <h3 style={{ color: '#dc2626', marginTop: 0 }}>🚨 API Permissions Issue</h3>
           <p><strong>403 Forbidden Error:</strong> Your API key may not have the required permissions.</p>
-          
           <div style={{ marginTop: '1rem' }}>
             <h4>To fix this issue:</h4>
             <ol style={{ paddingLeft: '1.5rem' }}>
@@ -143,19 +143,11 @@ const Dashboard = ({ binanceApi, onLogout }) => {
                   <li>✅ <strong>Enable Futures</strong> (for futures data)</li>
                 </ul>
               </li>
-              <li>If using IP restrictions, add your current IP address</li>
-              <li>Refresh this page after making changes</li>
             </ol>
           </div>
-          
-          <p style={{ marginTop: '1rem', fontSize: '0.9em', color: '#6b7280' }}>
-            <strong>Note:</strong> Only "Enable Reading" and "Enable Futures" permissions are needed for this dashboard. 
-            Never enable "Enable Trading" unless specifically required.
-          </p>
         </div>
       );
     }
-    
     return (
       <div className="error-message" style={{ 
         background: '#fee2e2', 
@@ -336,10 +328,12 @@ const Dashboard = ({ binanceApi, onLogout }) => {
                 if (binanceApi.clearPriceCache) {
                   binanceApi.clearPriceCache();
                 }
-                // Use fastRefresh to update order data
-                if (typeof fastRefresh === 'function') fastRefresh('futures');
+                // Use intelligentRefresh to update all data
+                if (typeof refresh === 'function') refresh();
+                setOrdersSectionKey(Date.now());
                 setTimeout(() => {
-                  if (typeof fastRefresh === 'function') fastRefresh('futures');
+                  if (typeof refresh === 'function') refresh();
+                  setOrdersSectionKey(Date.now());
                 }, 2000);
               }}
             />

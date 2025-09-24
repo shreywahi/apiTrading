@@ -13,15 +13,8 @@ import ApiCallOptimizer from '../utils/apiCallOptimizer.js';
  * 6. Real-time performance monitoring
  */
 export const useUltraOptimizedDashboardData = (binanceApi) => {
-  // Market mode: 'futures' (production) or 'spot' (dev)
-  const marketMode = (import.meta.env.VITE_MARKET_MODE || 'futures').toLowerCase();
-  // DEBUG: Log when the hook is initialized
-  console.log('[UltraOptimizedDashboardData] Hook initialized', { binanceApi });
-  // Core data states
+  // Only futures mode supported
   const [accountData, setAccountData] = useState(null);
-  // Spot state removed in futures-only mode
-  const [orders, setOrders] = useState([]);
-  const [openOrders, setOpenOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -88,11 +81,9 @@ export const useUltraOptimizedDashboardData = (binanceApi) => {
   // Accept an optional market argument to control which orders to fetch
   // Only fetch futures data in futures mode
   const ultraFastRefresh = async (market = 'all') => {
-  console.log('[UltraOptimizedDashboardData] ultraFastRefresh called', { market });
     if (!optimizerRef.current) return;
 
     try {
-      console.log('[UltraOptimizedDashboardData] Starting refresh', { marketMode });
       setRefreshing(true);
       const startTime = Date.now();
       optimizerRef.current.clearOrderCaches();
@@ -102,32 +93,19 @@ export const useUltraOptimizedDashboardData = (binanceApi) => {
       let orderData = {};
       let futuresError = null;
 
-      // Only fetch futures orders in futures mode
-      if (marketMode === 'futures') {
-        try {
-          const allOrderData = await optimizerRef.current.getOptimizedOrderData(50);
-          orderData.futuresOpenOrders = allOrderData.futuresOpenOrders;
-          orderData.futuresOrders = allOrderData.futuresOrders;
-        } catch (err) {
-          futuresError = err;
-        }
-      } else {
-        // In dev, fetch both (legacy)
-        try {
-          orderData = await optimizerRef.current.getOptimizedOrderData(50);
-        } catch (err) {
-          futuresError = err;
-        }
+      // Only fetch futures orders
+      try {
+        const allOrderData = await optimizerRef.current.getOptimizedOrderData(50);
+        orderData.futuresOpenOrders = allOrderData.futuresOpenOrders;
+        orderData.futuresOrders = allOrderData.futuresOrders;
+      } catch (err) {
+        futuresError = err;
       }
 
       if (portfolioData) {
-        console.log('[UltraOptimizedDashboardData] Setting account data', { portfolioData });
-        // Only set futures account data in futures mode
         const enrichedAccountData = {
-          ...accountData,
           futures: portfolioData.futuresAccount || null,
           futuresAccount: portfolioData.futuresAccount || null,
-          spotWalletValue: 0,
           futuresWalletValue: portfolioData.futuresWalletValue || 0,
           totalPortfolioValue: portfolioData.totalPortfolioValue || 0,
           currentPrices: Object.entries(portfolioData.priceData || {}).map(([asset, price]) => ({
@@ -139,6 +117,10 @@ export const useUltraOptimizedDashboardData = (binanceApi) => {
         };
 
         setAccountData(enrichedAccountData);
+        // Ensure positionHistory is updated for PnLSection
+        if (portfolioData.futuresAccount && Array.isArray(portfolioData.futuresAccount.positions)) {
+          setPositionHistory(portfolioData.futuresAccount.positions);
+        }
 
         // Create backup of valid data before updating order states
         const newBackup = {
@@ -151,7 +133,6 @@ export const useUltraOptimizedDashboardData = (binanceApi) => {
 
         // Update order data if available, but preserve existing data on failure
         if (orderData) {
-          console.log('[UltraOptimizedDashboardData] Setting order data', { orderData });
           if (orderData.futuresOpenOrders !== undefined) {
             setFuturesOpenOrders(orderData.futuresOpenOrders || []);
           }
@@ -177,8 +158,7 @@ export const useUltraOptimizedDashboardData = (binanceApi) => {
         });
       }
 
-      // Only handle futures errors in futures mode
-      if (marketMode === 'futures' && futuresError) {
+      if (futuresError) {
         console.error('[UltraOptimizedDashboardData] Futures error', futuresError);
         setError('Error loading futures orders: ' + futuresError.message);
       } else {
@@ -194,7 +174,6 @@ export const useUltraOptimizedDashboardData = (binanceApi) => {
         setError(error.message);
       }
     } finally {
-  console.log('[UltraOptimizedDashboardData] ultraFastRefresh finished', { market });
       setRefreshing(false);
     }
   };
@@ -214,19 +193,12 @@ export const useUltraOptimizedDashboardData = (binanceApi) => {
       // Clear order-specific caches to ensure fresh data
       optimizerRef.current.clearOrderCaches();
 
-      // Phase 1: Ultra-optimized portfolio data (replaces 8-12 API calls with 2-3)
+      // Phase 1: Ultra-optimized portfolio data (positions, prices, wallet)
       const portfolioData = await optimizerRef.current.getOptimizedPortfolioData();
-
-      // Phase 2: Optimized order data (replaces 6-8 API calls with 1-2)
-      const orderData = await optimizerRef.current.getOptimizedOrderData(50);
-
-      // Build comprehensive account data
       if (portfolioData) {
         const comprehensiveAccountData = {
-          ...portfolioData.spotAccount,
           futures: portfolioData.futuresAccount,
           futuresAccount: portfolioData.futuresAccount,
-          spotWalletValue: portfolioData.spotWalletValue,
           futuresWalletValue: portfolioData.futuresWalletValue,
           totalPortfolioValue: portfolioData.totalPortfolioValue,
           currentPrices: Object.entries(portfolioData.priceData || {}).map(([asset, price]) => ({
@@ -237,44 +209,40 @@ export const useUltraOptimizedDashboardData = (binanceApi) => {
           usingUltraOptimization: true,
           optimizationStats: optimizerRef.current.getOptimizationStats()
         };
-
         setAccountData(comprehensiveAccountData);
-      }
-
-      // Update order states (legacy spot+futures, but only if defined)
-      if (orderData) {
-        if (orderData.spotOrders && Array.isArray(orderData.spotOrders)) {
-          setOrders([...orderData.spotOrders].reverse());
-        }
-        if (orderData.openOrders && Array.isArray(orderData.openOrders)) {
-          setOpenOrders(orderData.openOrders);
-        }
-        // Set futures order data if available
-        if (orderData.futuresOrders && Array.isArray(orderData.futuresOrders)) {
-          setFuturesOrderHistory([...orderData.futuresOrders].reverse());
-        }
-        // Set futures open orders if available
-        if (orderData.futuresOpenOrders && Array.isArray(orderData.futuresOpenOrders)) {
-          setFuturesOpenOrders(orderData.futuresOpenOrders);
+        // Set positions immediately for P&L
+        if (portfolioData.futuresAccount && Array.isArray(portfolioData.futuresAccount.positions)) {
+          setPositionHistory(portfolioData.futuresAccount.positions);
         }
       }
 
-      // Phase 3: Background futures data fetch (non-blocking)
+      // Phase 2: Order/trade/funding/transaction data in background (non-blocking)
       setTimeout(async () => {
         try {
+          // Optimized order data
+          const orderData = await optimizerRef.current.getOptimizedOrderData(50);
+          if (orderData) {
+            if (orderData.futuresOrders && Array.isArray(orderData.futuresOrders)) {
+              setFuturesOrderHistory([...orderData.futuresOrders].reverse());
+            }
+            if (orderData.futuresOpenOrders && Array.isArray(orderData.futuresOpenOrders)) {
+              setFuturesOpenOrders(orderData.futuresOpenOrders);
+            }
+          }
+          // Additional futures data (trades, transactions, funding)
           const futuresData = await binanceApi.getFuturesOrdersData();
           if (futuresData) {
             setFuturesOpenOrders(futuresData.openOrders || []);
-            setFuturesOrderHistory(futuresData.orderHistory || []); // Add missing order history update
-            setPositionHistory(futuresData.positions || []);
+            setFuturesOrderHistory(futuresData.orderHistory || []);
             setTradeHistory(futuresData.tradeHistory || []);
             setTransactionHistory(futuresData.transactionHistory || []);
             setFundingFeeHistory(futuresData.fundingFees || []);
+            // DO NOT overwrite accountData or positionHistory here!
           }
         } catch (bgError) {
           console.warn('Background futures data fetch error (non-critical):', bgError.message);
         }
-      }, 50); // Minimal delay to ensure UI renders
+      }, 10); // Start background fetch almost immediately
 
       // Update performance metrics
       const totalLoadTime = Date.now() - startTime;
@@ -397,38 +365,9 @@ export const useUltraOptimizedDashboardData = (binanceApi) => {
     return false;
   };
 
-  // Only expose futures data in futures mode
-  if (marketMode === 'futures') {
-    return {
-      accountData,
-      loading,
-      error,
-      refreshing,
-      futuresOpenOrders,
-      futuresOrderHistory,
-      positionHistory,
-      tradeHistory,
-      transactionHistory,
-      fundingFeeHistory,
-      refresh: intelligentRefresh,
-      fastRefresh: ultraFastRefresh,
-      fullRefresh: smartFullRefresh,
-      forceRefresh: forceFullRefresh,
-      optimisticOrderCancel,
-      restoreFromBackup,
-      performanceMetrics,
-      getOptimizationStats,
-      clearError: () => setError(null),
-      isOptimized: true,
-      optimizationLevel: 'enterprise',
-      estimatedApiReduction: '85-90%'
-    };
-  }
-  // Dev mode: legacy (spot+futures)
+  // Only expose futures data
   return {
     accountData,
-    orders,
-    openOrders,
     loading,
     error,
     refreshing,

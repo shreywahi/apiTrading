@@ -84,114 +84,7 @@ class BinanceAPI {
     return Date.now() + this.timeOffset;
   }
 
-  // Generate mock data for demo purposes
-  getMockAccountData() {
-    return {
-      accountType: "SPOT",
-      balances: [
-        { asset: "USDT", free: "1250.50", locked: "0.00" },
-        { asset: "BTC", free: "0.05123456", locked: "0.00" },
-        { asset: "ETH", free: "2.75891234", locked: "0.50000000" },
-        { asset: "BNB", free: "15.25", locked: "10.00" },
-        { asset: "ADA", free: "500.00", locked: "0.00" },
-        { asset: "DOT", free: "0.00", locked: "100.00" },
-        { asset: "SOL", free: "8.50", locked: "20.00" },
-        { asset: "MATIC", free: "150.75", locked: "0.00" }
-      ],
-      canTrade: true,
-      canWithdraw: true,
-      canDeposit: true,
-      updateTime: Date.now()
-    };
-  }
-
-  getMockOrders() {
-    const now = Date.now();
-    return [
-      {
-        orderId: 123456789,
-        symbol: "BTCUSDT",
-        status: "FILLED",
-        side: "BUY",
-        type: "LIMIT",
-        origQty: "0.001",
-        executedQty: "0.001",
-        price: "45000.00",
-        time: now - 86400000, // 1 day ago
-      },
-      {
-        orderId: 123456790,
-        symbol: "ETHUSDT",
-        status: "FILLED",
-        side: "SELL",
-        type: "MARKET",
-        origQty: "0.5",
-        executedQty: "0.5",
-        price: "0.00000000",
-        time: now - 3600000, // 1 hour ago
-      },
-      {
-        orderId: 123456791,
-        symbol: "ADAUSDT",
-        status: "PARTIALLY_FILLED",
-        side: "BUY",
-        type: "LIMIT",
-        origQty: "1000",
-        executedQty: "500",
-        price: "0.45",
-        time: now - 1800000, // 30 minutes ago
-      },
-      {
-        orderId: 123456793,
-        symbol: "BNBUSDT",
-        status: "FILLED",
-        side: "BUY",
-        type: "LIMIT",
-        origQty: "5",
-        executedQty: "5",
-        price: "320.50",
-        time: now - 7200000, // 2 hours ago
-      },
-      {
-        orderId: 123456794,
-        symbol: "DOTUSDT",
-        status: "CANCELED",
-        side: "SELL",
-        type: "LIMIT",
-        origQty: "100",
-        executedQty: "0",
-        price: "6.75",
-        time: now - 10800000, // 3 hours ago
-      }
-    ];
-  }
-
-  getMockOpenOrders() {
-    return [
-      {
-        orderId: 123456792,
-        symbol: "BNBUSDT",
-        status: "NEW",
-        side: "BUY",
-        type: "LIMIT",
-        origQty: "10",
-        executedQty: "0",
-        price: "300.00",
-        time: Date.now() - 600000, // 10 minutes ago
-      },
-      {
-        orderId: 123456795,
-        symbol: "SOLUSDT",
-        status: "NEW",
-        side: "SELL",
-        type: "LIMIT",
-        origQty: "20",
-        executedQty: "0",
-        price: "25.75",
-        time: Date.now() - 1200000, // 20 minutes ago
-      }
-    ];
-  }
+  // ...existing code...
 
   // Generate signature for authenticated requests
   generateSignature(queryString) {
@@ -981,30 +874,37 @@ class BinanceAPI {
   // Get futures account information with P&L data
   async getFuturesAccountInfo() {
     try {
-      const futuresAccount = await this.makeFuturesRequest('/fapi/v2/account', 'GET');
-      
-      // Calculate total unrealized PnL from positions
-      if (futuresAccount && futuresAccount.positions) {
+      // Fetch both account info and position risk in parallel
+      const [futuresAccount, positionRisk] = await Promise.all([
+        this.makeFuturesRequest('/fapi/v2/account', 'GET'),
+        this.makeFuturesRequest('/fapi/v2/positionRisk', 'GET')
+      ]);
+
+      // Merge liquidationPrice from positionRisk into each position
+      if (futuresAccount && futuresAccount.positions && Array.isArray(positionRisk)) {
         let totalUnrealizedPnl = 0;
         futuresAccount.positions.forEach(position => {
+          // Find matching positionRisk entry by symbol
+          const risk = positionRisk.find(r => r.symbol === position.symbol);
+          if (risk && risk.liquidationPrice !== undefined) {
+            position.liquidationPrice = risk.liquidationPrice;
+          }
           if (parseFloat(position.positionAmt) !== 0) {
             totalUnrealizedPnl += parseFloat(position.unrealizedProfit || 0);
           }
         });
         futuresAccount.totalUnrealizedPnl = totalUnrealizedPnl;
       }
-      
+
       return futuresAccount;
     } catch (error) {
       console.warn('Futures account not available or not enabled:', error.message);
-      
       // If it's a permission error, provide guidance but return null
       if (error.message.includes('403') || error.message.includes('Access forbidden')) {
         console.warn('💡 Futures trading appears to be disabled for this API key');
         console.warn('   P&L calculations will only include spot holdings');
         console.warn('   To enable futures: Go to Binance API Management > Edit API Key > Enable Futures');
       }
-      
       return null;
     }
   }

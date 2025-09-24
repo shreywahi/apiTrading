@@ -13,8 +13,7 @@ import { useState, useEffect, useRef } from 'react';
 export const useOptimizedDashboardData = (binanceApi) => {
   // Core data states
   const [accountData, setAccountData] = useState(null);
-  const [orders, setOrders] = useState([]);
-  const [openOrders, setOpenOrders] = useState([]);
+  // Remove spot order states
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -27,9 +26,7 @@ export const useOptimizedDashboardData = (binanceApi) => {
   const [transactionHistory, setTransactionHistory] = useState([]);
   const [fundingFeeHistory, setFundingFeeHistory] = useState([]);
 
-  // Spot-specific data
-  const [spotTransferHistory, setSpotTransferHistory] = useState([]);
-  const [spotConvertHistory, setSpotConvertHistory] = useState([]);
+  // ...existing code...
 
   // Performance caching
   const priceCache = useRef({ data: {}, timestamp: 0, ttl: 30000 }); // 30s cache
@@ -39,83 +36,17 @@ export const useOptimizedDashboardData = (binanceApi) => {
   /**
    * Get essential assets from account balances to minimize price API calls
    */
-  const getEssentialAssets = (balances = []) => {
-    const significantBalances = balances.filter(balance => {
-      const total = parseFloat(balance.free) + parseFloat(balance.locked);
-      return total > 0.001; // Only fetch prices for assets with meaningful balances
-    });
-    
-    const assets = new Set(['BTC', 'ETH', 'BNB']); // Always include major assets
-    significantBalances.forEach(balance => assets.add(balance.asset));
-    
-    return Array.from(assets);
-  };
+  // Remove spot asset logic
 
   /**
    * Fast price fetching - only get prices for assets we actually need
    */
-  const fetchEssentialPrices = async (requiredAssets) => {
-    const now = Date.now();
-    
-    // Return cached prices if still valid
-    if (priceCache.current.timestamp + priceCache.current.ttl > now && 
-        Object.keys(priceCache.current.data).length > 0) {
-      return priceCache.current.data;
-    }
-
-    try {
-      // Fetch only specific symbols we need (much faster than all tickers)
-      const symbols = requiredAssets
-        .filter(asset => asset !== 'USDT' && asset !== 'BUSD')
-        .map(asset => `${asset}USDT`)
-        .slice(0, 20); // Limit to 20 symbols max for performance
-
-      if (symbols.length === 0) return {};
-
-      const symbolsParam = symbols.join(',');
-      const priceData = await binanceApi.makePublicRequest('/api/v3/ticker/price', {
-        symbols: JSON.stringify(symbols)
-      });
-
-      const priceMap = {};
-      if (Array.isArray(priceData)) {
-        priceData.forEach(ticker => {
-          const asset = ticker.symbol.replace('USDT', '');
-          priceMap[asset] = parseFloat(ticker.price);
-        });
-      }
-
-      // Cache the results
-      priceCache.current = {
-        data: priceMap,
-        timestamp: now,
-        ttl: 30000
-      };
-
-      return priceMap;
-    } catch (error) {
-      console.warn('Fast price fetch failed, using cache:', error.message);
-      return priceCache.current.data || {};
-    }
-  };
+  // Remove spot price logic
 
   /**
    * Ensure account data has all necessary fields for P&L calculations
    */
-  const enrichAccountDataForPnL = (accountData, spotData, futuresData) => {
-    return {
-      ...accountData,
-      balances: spotData?.balances || accountData.balances || [],
-      futures: futuresData || accountData.futures,
-      futuresAccount: futuresData || accountData.futuresAccount,
-      // Ensure we have all fields that calculatePnL expects
-      canTrade: spotData?.canTrade || accountData.canTrade,
-      canWithdraw: spotData?.canWithdraw || accountData.canWithdraw,
-      canDeposit: spotData?.canDeposit || accountData.canDeposit,
-      accountType: spotData?.accountType || accountData.accountType,
-      updateTime: Date.now()
-    };
-  };
+  // Remove spot enrichment logic
 
   /**
    * Fast refresh - only update critical portfolio data
@@ -123,59 +54,19 @@ export const useOptimizedDashboardData = (binanceApi) => {
   const fastRefresh = async () => {
     try {
       setRefreshing(true);
-      
-      // Fetch essential account data including futures for P&L calculations
-      const [spotAccount, futuresAccount, openOrdersData] = await Promise.allSettled([
-        binanceApi.makeRequest('/api/v3/account'),
-        binanceApi.getFuturesAccountInfo(), // Include futures for P&L
-        binanceApi.getSpotOnlyOpenOrders() // Use spot-only open orders
-      ]);
-
-      if (spotAccount.status === 'fulfilled' && spotAccount.value) {
-        const essentialAssets = getEssentialAssets(spotAccount.value.balances);
-        const priceMap = await fetchEssentialPrices(essentialAssets);
-        
-        // Recalculate spot wallet value
-        let spotWalletValue = 0;
-        spotAccount.value.balances.forEach(balance => {
-          const total = parseFloat(balance.free) + parseFloat(balance.locked);
-          if (total > 0.001) {
-            if (['USDT', 'BUSD', 'USDC', 'FDUSD'].includes(balance.asset)) {
-              spotWalletValue += total;
-            } else if (priceMap[balance.asset]) {
-              spotWalletValue += total * priceMap[balance.asset];
-            }
-          }
-        });
-
-        // Get updated futures data for accurate P&L
-        const updatedFuturesData = futuresAccount.status === 'fulfilled' ? futuresAccount.value : accountData?.futures;
-        const futuresWalletValue = updatedFuturesData ? parseFloat(updatedFuturesData.totalWalletBalance || 0) : 0;
-        const totalPortfolioValue = spotWalletValue + futuresWalletValue;
-        
-        // Update account data with all necessary data for P&L calculations
-        const updatedAccountData = enrichAccountDataForPnL(
-          {
-            ...accountData,
-            spotWalletValue,
-            futuresWalletValue,
-            totalPortfolioValue,
-            currentPrices: Object.entries(priceMap).map(([asset, price]) => ({
-              symbol: `${asset}USDT`,
-              price: price.toString()
-            }))
-          },
-          spotAccount.value,
-          updatedFuturesData
-        );
-        
-        setAccountData(updatedAccountData);
-      }
-
-      if (openOrdersData.status === 'fulfilled') {
-        setOpenOrders(openOrdersData.value);
-      }
-
+      // Only fetch futures account data
+      const futuresAccount = await binanceApi.getFuturesAccountInfo();
+      const futuresWalletValue = futuresAccount ? parseFloat(futuresAccount.totalWalletBalance || 0) : 0;
+      const totalPortfolioValue = futuresWalletValue;
+      const updatedAccountData = {
+        futures: futuresAccount,
+        futuresAccount: futuresAccount,
+        futuresWalletValue,
+        totalPortfolioValue,
+        currentPrices: [],
+        updateTime: Date.now()
+      };
+      setAccountData(updatedAccountData);
     } catch (error) {
       console.error('Fast refresh failed:', error.message);
       setError(error.message);

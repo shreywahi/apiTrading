@@ -315,11 +315,11 @@ const TradingSection = ({
                 <Zap size={24} />
               </div>
               <div className="header-text">
-                <h2>Trading Center {shouldUseMockMode && <span className="demo-badge">DEMO</span>}</h2>
+                <h2>Live Trading Center {shouldUseMockMode && <span className="demo-badge">DEMO</span>}</h2>
                 <p>
                   {shouldUseMockMode 
                     ? 'Demo mode - No real trades will be executed' 
-                    : 'Live trading - Real orders will be executed'
+                    : 'Real orders will be executed'
                   }
                 </p>
               </div>
@@ -340,29 +340,12 @@ const TradingSection = ({
 
           {/* Market Selection */}
           <div className="market-tabs">
-            {isLocalhost && (
-              <button 
-                className={`tab-btn ${selectedMarket === 'spot' ? 'active' : ''}`}
-                onClick={() => {
-                  setSelectedMarket('spot');
-                  setMessage({ type: '', text: '' });
-                }}
-              >
-                Spot Trading
-              </button>
-            )}
             <button 
-              className={`tab-btn ${selectedMarket === 'futures' ? 'active' : ''}`}
-              onClick={() => {
-                setSelectedMarket('futures');
-                setMessage({ type: '', text: '' });
-              }}
+              className="tab-btn active"
+              disabled
             >
               USD-M Futures
             </button>
-            
-            {/* Test Access Button - Show for both markets */}
-            {/* Test Access Button removed as requested */}
           </div>
           <br />
           <div className="trading-form-container">

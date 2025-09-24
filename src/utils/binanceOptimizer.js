@@ -93,18 +93,13 @@ export class BinancePerformanceOptimizer {
   }
 
   /**
-   * Batch futures and spot data efficiently
+   * Batch futures data efficiently
    */
   async getBatchedAccountData() {
     try {
-      const [spot, futures] = await Promise.allSettled([
-        this.getEssentialAccountInfo(),
-        this.api.getFuturesAccountInfo()
-      ]);
-
+      const futures = await this.api.getFuturesAccountInfo();
       return {
-        spot: spot.status === 'fulfilled' ? spot.value : null,
-        futures: futures.status === 'fulfilled' ? futures.value : null,
+        futures,
         timestamp: Date.now()
       };
     } catch (error) {

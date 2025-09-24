@@ -26,17 +26,9 @@ const DashboardHeader = ({
     <>
       <header className="dashboard-header">
         <div className="header-content">
-          {/* Left section: Logo, Title, and Pause indicator */}
+          {/* Left section: Logo and Title */}
           <div className="header-left">
             <img src={logo} alt="Logo" className="header-logo" />
-            <span 
-              className={`auto-refresh-indicator ${autoRefreshActive ? 'active' : 'paused'}`} 
-              onClick={toggleAutoRefresh}
-              title={autoRefreshActive ? 'Auto-refresh active - click to pause' : 'Auto-refresh paused - click to resume'}
-            >
-              <Activity size={10} />
-              {autoRefreshActive ? 'Live' : 'Paused'}
-            </span>
           </div>
 
           {/* Center section: Team image */}
@@ -61,19 +53,8 @@ const DashboardHeader = ({
           </div>
         </div>
       </header>
-
-      {/* Mobile bottom bar - only visible on small screens */}
-      <div className="mobile-bottom-bar mobile-only">
-        <button 
-          onClick={handleManualRefresh} 
-          className={`mobile-refresh-btn ${autoRefreshTimer <= 3 && autoRefreshActive ? 'urgent' : ''}`}
-          disabled={refreshing}
-          title={autoRefreshActive ? `Auto-refresh in ${autoRefreshTimer}s` : 'Auto-refresh paused - manual refresh only'}
-        >
-          <RefreshCw size={16} className={refreshing ? 'spinning' : ''} />
-          <span className="mobile-btn-text">{refreshing ? 'Refreshing' : autoRefreshActive ? `${autoRefreshTimer}s` : 'Refresh'}</span>
-        </button>
-
+      
+      <div className="mobile-bottom-bar mobile-only" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <button 
           onClick={() => setDarkMode(!darkMode)} 
           className="mobile-theme-btn"
@@ -82,6 +63,18 @@ const DashboardHeader = ({
           {darkMode ? <Sun size={16} /> : <Moon size={16} />}
           <span className="mobile-btn-text">Theme</span>
         </button>
+
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+          <span 
+            className={`auto-refresh-indicator ${autoRefreshActive ? 'active' : 'paused'}`}
+            onClick={toggleAutoRefresh}
+            title={autoRefreshActive ? 'Auto-refresh active - click to pause' : 'Auto-refresh paused - click to resume'}
+            style={{ marginBottom: 4 }}
+          >
+            <Activity size={10} />
+            {autoRefreshActive ? 'Live' : 'Paused'}
+          </span>
+        </div>
 
         <select 
           value={displayCurrency} 
