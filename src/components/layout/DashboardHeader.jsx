@@ -44,7 +44,7 @@ const DashboardHeader = ({
               title="Add another API key"
             >
               <Plus size={14} />
-              <span className="btn-text">Add API</span>
+              <span className="btn-text">New API Dashboard</span>
             </button>
             <button onClick={onLogout} className="logout-btn">
               <LogOut size={14} />
