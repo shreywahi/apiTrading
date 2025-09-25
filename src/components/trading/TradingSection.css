@@ -232,24 +232,57 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.symbol-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
 .symbol-selector label {
   display: block;
   color: #64748b;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 500;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.symbol-search-input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #3b4261;
+  border-radius: 6px;
+  background: #181c2f;
+  color: #e0e6f6;
+  font-size: 1rem;
+  outline: none;
+  transition: border 0.2s;
+  margin-bottom: 0;
+  margin-top: 0;
+  box-sizing: border-box;
+}
+.symbol-search-input:focus {
+  border: 1.5px solid #6c63ff;
+  background: #23284a;
 }
 
 .symbol-select {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  color: #2d3748;
-  font-size: 1rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #3b4261;
+  border-radius: 6px;
+  background: #23284a;
+  color: #e0e6f6;
+  font-size: 1.05rem;
+  font-weight: bold;
+  outline: none;
+  margin-top: 0;
+  margin-bottom: 0;
+  transition: border 0.2s;
+  box-sizing: border-box;
+}
+.symbol-select:focus {
+  border: 1.5px solid #6c63ff;
+  background: #23284a;
 }
 
 .current-price {

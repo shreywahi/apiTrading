@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
 import { AlertCircle, CheckCircle, Zap } from 'lucide-react';
 import './TradingSection.css';
 
@@ -16,6 +17,12 @@ const TradingSection = ({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [symbolList, setSymbolList] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [allFuturesSymbols, setAllFuturesSymbols] = useState([]);
+  const searchTimeout = useRef(null);
+  const fetchedAllSymbols = useRef(false);
+  const userSelectedSymbol = useRef(false);
   const [currentPrice, setCurrentPrice] = useState(null);
   const [leverage, setLeverage] = useState('1');
   const [isInitialized, setIsInitialized] = useState(false);
@@ -64,9 +71,26 @@ const TradingSection = ({
 
   const loadSymbols = async () => {
     try {
+      // Always try to fetch all USD-M futures pairs from Binance
+      if (!shouldUseMockMode && !fetchedAllSymbols.current) {
+        const res = await axios.get('https://fapi.binance.com/fapi/v1/exchangeInfo');
+        const allSymbols = res.data.symbols
+          .filter(s => s.contractType === 'PERPETUAL' && s.quoteAsset === 'USDT' && s.status === 'TRADING')
+          .map(s => s.symbol);
+        setAllFuturesSymbols(allSymbols);
+        setSymbolList(allSymbols);
+        setSearchResults(allSymbols);
+        fetchedAllSymbols.current = true;
+        if (allSymbols.length > 0 && !symbol) {
+          setSymbol(allSymbols[0]);
+        }
+        return;
+      }
+      // fallback to binanceApi.getSymbols if available
       if (!shouldUseMockMode && binanceApi && typeof binanceApi.getSymbols === 'function') {
         const symbols = await binanceApi.getSymbols('futures');
         setSymbolList(symbols || []);
+        setSearchResults(symbols || []);
         if (symbols?.length > 0 && !symbol) {
           setSymbol(symbols[0]);
         }
@@ -74,6 +98,7 @@ const TradingSection = ({
         // Fallback symbols when API is not available
         const fallbackSymbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'BCHUSDT', 'AAVEUSDT', 'PAXGUSDT'];
         setSymbolList(fallbackSymbols);
+        setSearchResults(fallbackSymbols);
         if (!symbol) {
           setSymbol(fallbackSymbols[0]);
         }
@@ -82,11 +107,45 @@ const TradingSection = ({
       console.warn('Failed to load symbols, using fallback:', error);
       const fallbackSymbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'BCHUSDT', 'AAVEUSDT', 'PAXGUSDT'];
       setSymbolList(fallbackSymbols);
+      setSearchResults(fallbackSymbols);
       if (!symbol) {
         setSymbol(fallbackSymbols[0]);
       }
     }
   };
+
+  // Search for futures pairs from Binance when user types
+  useEffect(() => {
+    if (!searchTerm) {
+      setSearchResults(allFuturesSymbols.length > 0 ? allFuturesSymbols : symbolList);
+      userSelectedSymbol.current = false;
+      return;
+    }
+    if (shouldUseMockMode) {
+      setSearchResults(symbolList.filter(s => s.toLowerCase().includes(searchTerm.toLowerCase())));
+      userSelectedSymbol.current = false;
+      return;
+    }
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => {
+      const baseList = allFuturesSymbols.length > 0 ? allFuturesSymbols : symbolList;
+      setSearchResults(baseList.filter(s => s.toLowerCase().includes(searchTerm.toLowerCase())));
+      userSelectedSymbol.current = false;
+    }, 200);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, allFuturesSymbols]);
+
+  // When searchResults change, auto-select the first symbol and fetch its price unless user just picked a symbol
+  useEffect(() => {
+    if (searchResults.length > 0 && !userSelectedSymbol.current) {
+      setSymbol(prev => {
+        if (prev !== searchResults[0]) {
+          return searchResults[0];
+        }
+        return prev;
+      });
+    }
+  }, [searchResults]);
 
   const getCurrentPrice = async () => {
     try {
@@ -309,26 +368,42 @@ const TradingSection = ({
             <div className="symbol-info">
               <div className="symbol-selector">
                 <label>Trading Pair</label>
+                <input
+                  type="text"
+                  className="symbol-search-input"
+                  placeholder="Search pair (e.g. XRPUSDT)"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  style={{ marginBottom: 8, width: '100%' }}
+                />
                 <select 
                   value={symbol} 
-                  onChange={(e) => setSymbol(e.target.value)}
+                  onChange={(e) => {
+                    setSymbol(e.target.value);
+                    userSelectedSymbol.current = true;
+                  }}
                   className="symbol-select"
-                  disabled={symbolList.length === 0}
+                  disabled={searchResults.length === 0}
                 >
-                  {symbolList.length > 0 ? (
-                    symbolList.map(s => (
+                  {searchResults.length > 0 ? (
+                    searchResults.map(s => (
                       <option key={s} value={s}>{s}</option>
                     ))
                   ) : (
-                    <option value="">Loading symbols...</option>
+                    <option value="">No pairs found</option>
                   )}
                 </select>
-            </div>
+              </div>
             
             {currentPrice && (
               <div className="current-price">
                 <span className="price-label">Current Price</span>
-                <span className="price-value">{parseFloat(currentPrice).toFixed(4)} USDT</span>
+                <span className="price-value">
+                  {parseFloat(currentPrice) < 1
+                    ? parseFloat(currentPrice).toFixed(8)
+                    : parseFloat(currentPrice).toFixed(4)
+                  } USDT
+                </span>
               </div>
             )}
           </div>
