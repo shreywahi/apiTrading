@@ -1,4 +1,4 @@
-import { useState, Fragment } from 'react';
+import { useState, useRef, Fragment } from 'react';
 import { Activity, History, TrendingUp, ArrowUpDown, Coins, X } from 'lucide-react';
 import OrderStatusBadge from '../common/OrderStatusBadge';
 import './OrdersSection.css';
@@ -242,6 +242,27 @@ const OrdersSection = ({
 };
 
 const OpenOrdersTab = ({ futuresOpenOrders, handleSort, sortData, SortIndicator, formatDate, binanceApi, onOrderCancelled, handleCloseOrder, closingOrders }) => {
+  const [editOrderId, setEditOrderId] = useState(null);
+  const [editAmount, setEditAmount] = useState('');
+  const [editPrice, setEditPrice] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+  // Prevent live refresh from interrupting editing
+  const frozenOrdersRef = useRef(null);
+  let displayOrders = futuresOpenOrders;
+  // Strictly freeze open orders data when editing starts
+  // Guarantee edit state and table data are frozen the moment editing starts, regardless of prop changes
+  const prevEditOrderId = useRef(null);
+  if (editOrderId) {
+    if (!frozenOrdersRef.current || prevEditOrderId.current !== editOrderId) {
+      frozenOrdersRef.current = Array.isArray(futuresOpenOrders) ? [...futuresOpenOrders] : [];
+      prevEditOrderId.current = editOrderId;
+    }
+    displayOrders = frozenOrdersRef.current;
+  } else {
+    frozenOrdersRef.current = null;
+    prevEditOrderId.current = null;
+    displayOrders = futuresOpenOrders;
+  }
   // Safety check for props
   // Always render the table, even if loading or empty
   let sortedOrders = [];
@@ -280,9 +301,6 @@ const OpenOrdersTab = ({ futuresOpenOrders, handleSort, sortData, SortIndicator,
             <th onClick={() => handleSort && handleSort('open-orders', 'price')}>
               Price <SortIndicator tableType="open-orders" column="price" />
             </th>
-            <th onClick={() => handleSort && handleSort('open-orders', 'status')}>
-              Status <SortIndicator tableType="open-orders" column="status" />
-            </th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -299,9 +317,10 @@ const OpenOrdersTab = ({ futuresOpenOrders, handleSort, sortData, SortIndicator,
                 No open futures orders found
               </td>
             </tr>
-          ) : sortedOrders.map((order, index) => {
+          ) : (Array.isArray(displayOrders) ? (sortData ? sortData(displayOrders, 'open-orders') : displayOrders) : []).map((order, index) => {
             if (!order) return null;
             const orderId = order.orderId || order.id || index;
+            const isEditing = editOrderId === orderId;
             return (
               <tr key={orderId}>
                 <td>{formatDate(order.time)}</td>
@@ -317,27 +336,96 @@ const OpenOrdersTab = ({ futuresOpenOrders, handleSort, sortData, SortIndicator,
                   </span>
                 </td>
                 <td className="number-cell">
-                  {order.origQty ? parseFloat(order.origQty).toFixed(6) : '0.000000'}
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      step="0.000001"
+                      min="0"
+                      value={editAmount}
+                      onChange={e => setEditAmount(e.target.value)}
+                      className="edit-order-input"
+                    />
+                  ) : (
+                    order.origQty ? parseFloat(order.origQty).toFixed(6) : '0.000000'
+                  )}
                 </td>
                 <td className="number-cell">
-                  {order.price && parseFloat(order.price) > 0 ? 
-                    `$${parseFloat(order.price).toLocaleString()}` : 
-                    'Market'
-                  }
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      step="0.0001"
+                      min="0"
+                      value={editPrice}
+                      onChange={e => setEditPrice(e.target.value)}
+                      className="edit-order-input"
+                    />
+                  ) : (
+                    order.price && parseFloat(order.price) > 0 ? 
+                      `$${parseFloat(order.price).toLocaleString()}` : 
+                      'Market'
+                  )}
                 </td>
                 <td>
-                  <OrderStatusBadge status={order.status} />
-                </td>
-                <td>
-                  <button
-                    className={`close-order-btn ${closingOrders[orderId] ? 'cancelling' : ''}`}
-                    onClick={() => handleCloseOrder(order)}
-                    disabled={closingOrders[orderId]}
-                    title="Cancel this order"
-                  >
-                    <X size={14} />
-                    {closingOrders[orderId] ? 'Cancelling...' : 'Cancel'}
-                  </button>
+                  <div className="edit-actions-group">
+                    {isEditing ? (
+                      <>
+                        <button
+                          className="save-order-btn styled-action-btn"
+                          disabled={savingEdit}
+                          onClick={async () => {
+                            setSavingEdit(true);
+                            try {
+                              // Cancel original order
+                              await handleCloseOrder(order);
+                              // Place new order with updated values
+                              if (binanceApi && typeof binanceApi.placeFuturesOrder === 'function') {
+                                await binanceApi.placeFuturesOrder({
+                                  symbol: order.symbol,
+                                  side: order.side,
+                                  type: order.type,
+                                  quantity: parseFloat(editAmount),
+                                  price: parseFloat(editPrice),
+                                  timeInForce: order.timeInForce || 'GTC',
+                                });
+                              }
+                              setEditOrderId(null);
+                            } catch (e) {
+                              alert('Failed to modify order: ' + (e?.message || e));
+                            } finally {
+                              setSavingEdit(false);
+                            }
+                          }}
+                        >Save</button>
+                        <button
+                          className="cancel-edit-btn styled-action-btn"
+                          disabled={savingEdit}
+                          onClick={() => setEditOrderId(null)}
+                        >Cancel</button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          className="edit-order-btn styled-action-btn"
+                          onClick={() => {
+                            setEditOrderId(orderId);
+                            setEditAmount(order.origQty ? parseFloat(order.origQty).toString() : '');
+                            setEditPrice(order.price ? parseFloat(order.price).toString() : '');
+                          }}
+                          disabled={closingOrders[orderId]}
+                          title="Edit this order"
+                        >Edit</button>
+                        <button
+                          className={`close-order-btn styled-action-btn ${closingOrders[orderId] ? 'cancelling' : ''}`}
+                          onClick={() => handleCloseOrder(order)}
+                          disabled={closingOrders[orderId]}
+                          title="Cancel this order"
+                        >
+                          <X size={14} />
+                          {closingOrders[orderId] ? 'Cancelling...' : 'Cancel'}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </td>
               </tr>
             );
