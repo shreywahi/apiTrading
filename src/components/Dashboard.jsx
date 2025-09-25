@@ -324,6 +324,7 @@ const Dashboard = ({ binanceApi, onLogout }) => {
               accountData={accountData}
               formatCurrency={formatCurrency}
               binanceApi={binanceApi}
+              refreshTrigger={refreshing ? Date.now() : 0}
               onOrderPlaced={() => {
                 if (binanceApi.clearPriceCache) {
                   binanceApi.clearPriceCache();

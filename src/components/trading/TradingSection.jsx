@@ -2,13 +2,12 @@ import { useState, useEffect } from 'react';
 import { AlertCircle, CheckCircle, Zap } from 'lucide-react';
 import './TradingSection.css';
 
-const TradingSection = ({ 
-  accountData, 
-  formatCurrency, 
+const TradingSection = ({
+  accountData,
   binanceApi,
-  onOrderPlaced  // Add callback for order placement
+  refreshTrigger,
+  onOrderPlaced
 }) => {
-  const [selectedMarket, setSelectedMarket] = useState('futures');
   const [orderType, setOrderType] = useState('limit');
   const [side, setSide] = useState('buy');
   const [symbol, setSymbol] = useState('BTCUSDT'); // Will be updated based on market
@@ -27,13 +26,6 @@ const TradingSection = ({
     !binanceApi.apiKey || 
     binanceApi.useMockData;
 
-  const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
-
-  // Debug logging
-  useEffect(() => {
-    // Remove debug logging
-  }, [selectedMarket, shouldUseMockMode, symbolList, symbol, currentPrice, isInitialized, componentLoading]);
-
   // Load available symbols on mount
   useEffect(() => {
     const initializeComponent = async () => {
@@ -48,23 +40,22 @@ const TradingSection = ({
     };
     
     initializeComponent();
-  }, [selectedMarket]);
-
-  // Update symbol when market changes to use correct quote currency
-  useEffect(() => {
-    if (selectedMarket === 'spot' && symbol.endsWith('USDT')) {
-      setSymbol('BTCUSDC'); // Default spot symbol
-    } else if (selectedMarket === 'futures' && symbol.endsWith('USDC')) {
-      setSymbol('BTCUSDT'); // Default futures symbol
-    }
-  }, [selectedMarket]);
+  }, []);
 
   // Get current price when symbol changes
   useEffect(() => {
     if (symbol && isInitialized && !componentLoading) {
       getCurrentPrice();
     }
-  }, [symbol, selectedMarket, isInitialized, componentLoading]);
+  }, [symbol, isInitialized, componentLoading]);
+
+  // Refresh current price when refreshTrigger changes
+  useEffect(() => {
+    if (symbol && isInitialized && !componentLoading) {
+      getCurrentPrice();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshTrigger]);
 
   // Initialize component
   useEffect(() => {
@@ -74,16 +65,14 @@ const TradingSection = ({
   const loadSymbols = async () => {
     try {
       if (!shouldUseMockMode && binanceApi && typeof binanceApi.getSymbols === 'function') {
-        const symbols = await binanceApi.getSymbols(selectedMarket);
+        const symbols = await binanceApi.getSymbols('futures');
         setSymbolList(symbols || []);
         if (symbols?.length > 0 && !symbol) {
           setSymbol(symbols[0]);
         }
       } else {
         // Fallback symbols when API is not available
-        const fallbackSymbols = selectedMarket === 'spot' 
-          ? ['BTCUSDC', 'ETHUSDC', 'BNBUSDC', 'XRPUSDC', 'BCHUSDC', 'AAVEUSDC', 'PAXGUSDC']
-          : ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'BCHUSDT', 'AAVEUSDT', 'PAXGUSDT'];
+        const fallbackSymbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'BCHUSDT', 'AAVEUSDT', 'PAXGUSDT'];
         setSymbolList(fallbackSymbols);
         if (!symbol) {
           setSymbol(fallbackSymbols[0]);
@@ -91,9 +80,7 @@ const TradingSection = ({
       }
     } catch (error) {
       console.warn('Failed to load symbols, using fallback:', error);
-      const fallbackSymbols = selectedMarket === 'spot' 
-        ? ['BTCUSDC', 'ETHUSDC', 'BNBUSDC', 'XRPUSDC', 'BCHUSDC', 'AAVEUSDC', 'PAXGUSDC']
-        : ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'BCHUSDT', 'AAVEUSDT', 'PAXGUSDT'];
+      const fallbackSymbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'BCHUSDT', 'AAVEUSDT', 'PAXGUSDT'];
       setSymbolList(fallbackSymbols);
       if (!symbol) {
         setSymbol(fallbackSymbols[0]);
@@ -104,7 +91,7 @@ const TradingSection = ({
   const getCurrentPrice = async () => {
     try {
       if (!shouldUseMockMode && binanceApi && typeof binanceApi.getCurrentPrice === 'function') {
-        const priceData = await binanceApi.getCurrentPrice(symbol, selectedMarket);
+        const priceData = await binanceApi.getCurrentPrice(symbol, 'futures');
         setCurrentPrice(priceData?.price || null);
         if (orderType === 'market' || !price) {
           setPrice(priceData?.price || '');
@@ -120,14 +107,6 @@ const TradingSection = ({
           'BCHUSDT': 145 + Math.random() * 25,
           'AAVEUSDT': 12 + Math.random() * 3,
           'PAXGUSDT': 8 + Math.random() * 2,
-          // USDC pairs (spot)
-          'BTCUSDC': 43500 + Math.random() * 2000,
-          'ETHUSDC': 2400 + Math.random() * 200,
-          'BNBUSDC': 310 + Math.random() * 30,
-          'XRPUSDC': 23.55 + Math.random() * 0.5,
-          'BCHUSDC': 145 + Math.random() * 25,
-          'AAVEUSDC': 12 + Math.random() * 3,
-          'PAXGUSDC': 8 + Math.random() * 2
         };
         const mockPrice = mockPrices[symbol] || (1000 + Math.random() * 500);
         setCurrentPrice(mockPrice);
@@ -147,14 +126,6 @@ const TradingSection = ({
         'BCHUSDT': 145 + Math.random() * 25,
         'AAVEUSDT': 12 + Math.random() * 3,
         'PAXGUSDT': 8 + Math.random() * 2,
-        // USDC pairs (spot)
-        'BTCUSDC': 43500 + Math.random() * 2000,
-        'ETHUSDC': 2400 + Math.random() * 200,
-        'BNBUSDC': 310 + Math.random() * 30,
-        'XRPUSDC': 23.55 + Math.random() * 0.5,
-        'BCHUSDC': 145 + Math.random() * 25,
-        'AAVEUSDC': 12 + Math.random() * 3,
-        'PAXGUSDC': 8 + Math.random() * 2
       };
       const fallbackPrice = mockPrices[symbol] || (1000 + Math.random() * 1000);
       setCurrentPrice(fallbackPrice);
@@ -173,27 +144,16 @@ const TradingSection = ({
   const getAvailableBalance = () => {
     if (!accountData) {
       // Return mock balance only in demo mode, otherwise return 0
-      return shouldUseMockMode ? (selectedMarket === 'spot' ? 1000 : 10000) : 0;
+      return shouldUseMockMode ? (1000000000000) : 0;
     }
     
     try {
-      if (selectedMarket === 'spot') {
-        // For spot trading, always show USDC balance for buying power
-        // and the base asset balance for selling
-        const quoteAsset = 'USDC'; // Always use USDC for spot trading
-        const baseAsset = symbol.replace('USDC', '').replace('USDT', '').replace('BTC', '').replace('ETH', '');
-        
-        const targetAsset = side === 'buy' ? quoteAsset : baseAsset;
-        const balance = accountData.balances?.find(b => b.asset === targetAsset);
-        return parseFloat(balance?.free || 0);
-      } else {
-        // For futures, always show USDT balance
-        return parseFloat(accountData.futuresAccount?.totalWalletBalance || 0);
-      }
+      // For futures, always show USDT balance
+      return parseFloat(accountData.futuresAccount?.totalWalletBalance || 0);
     } catch (error) {
       console.warn('Error getting balance:', error);
       // Return mock balance only in demo mode
-      return shouldUseMockMode ? (selectedMarket === 'spot' ? 1000 : 10000) : 0;
+      return shouldUseMockMode ? (10000) : 0;
     }
   };
 
@@ -215,18 +175,14 @@ const TradingSection = ({
         type: orderType.toUpperCase(),
         quantity: parseFloat(quantity),
         ...(orderType === 'limit' && { price: parseFloat(price) }),
-        ...(selectedMarket === 'futures' && { leverage: parseInt(leverage) })
+        leverage: parseInt(leverage)
       };
 
       let result;
       
       // Use real API calls when available
       if (!shouldUseMockMode && binanceApi && typeof binanceApi.placeSpotOrder === 'function') {
-        if (selectedMarket === 'spot') {
-          result = await binanceApi.placeSpotOrder(orderParams);
-        } else {
-          result = await binanceApi.placeFuturesOrder(orderParams);
-        }
+        result = await binanceApi.placeFuturesOrder(orderParams);
       } else {
         // Mock order result for demo when API is not available
         result = {
@@ -372,7 +328,7 @@ const TradingSection = ({
             {currentPrice && (
               <div className="current-price">
                 <span className="price-label">Current Price</span>
-                <span className="price-value">{parseFloat(currentPrice).toFixed(4)} {selectedMarket === 'spot' ? 'USDC' : 'USDT'}</span>
+                <span className="price-value">{parseFloat(currentPrice).toFixed(4)} USDT</span>
               </div>
             )}
           </div>
@@ -416,25 +372,23 @@ const TradingSection = ({
             </div>
 
             {/* Leverage (Futures only) */}
-            {selectedMarket === 'futures' && (
-              <div className="form-group">
-                <label>Leverage</label>
-                <select 
-                  value={leverage} 
-                  onChange={(e) => setLeverage(e.target.value)}
-                  className="leverage-select"
-                >
-                  {[1, 2, 3, 5, 10, 20, 50, 100].map(lev => (
-                    <option key={lev} value={lev}>{lev}x</option>
-                  ))}
-                </select>
-              </div>
-            )}
+            <div className="form-group">
+              <label>Leverage</label>
+              <select 
+                value={leverage} 
+                onChange={(e) => setLeverage(e.target.value)}
+                className="leverage-select"
+              >
+                {[1, 2, 3, 5, 10, 20, 50, 100].map(lev => (
+                  <option key={lev} value={lev}>{lev}x</option>
+                ))}
+              </select>
+            </div>
 
             {/* Price Input */}
             {orderType === 'limit' && (
               <div className="form-group">
-                <label>Price ({selectedMarket === 'spot' ? 'USDC' : 'USDT'})</label>
+                <label>Price USDT</label>
                 <div className="price-input-container">
                   <input
                     type="number"
@@ -489,16 +443,12 @@ const TradingSection = ({
             <div className="order-summary">
               <div className="summary-row">
                 <span>Available:</span>
-                <span>{getAvailableBalance().toFixed(6)} {
-                  selectedMarket === 'spot' 
-                    ? (side === 'buy' ? 'USDC' : symbol.replace('USDC', '').replace('USDT', ''))
-                    : 'USDT'
-                }</span>
+                <span>{getAvailableBalance().toFixed(6)} USDT</span>
               </div>
               {orderType === 'limit' && price && quantity && (
                 <div className="summary-row">
                   <span>Total:</span>
-                  <span>{calculateTotal().toFixed(4)} {selectedMarket === 'spot' ? 'USDC' : 'USDT'}</span>
+                  <span>{calculateTotal().toFixed(4)} USDT</span>
                 </div>
               )}
             </div>
