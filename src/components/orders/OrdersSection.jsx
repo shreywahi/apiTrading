@@ -395,12 +395,12 @@ const OpenOrdersTab = ({ futuresOpenOrders, handleSort, sortData, SortIndicator,
                               setSavingEdit(false);
                             }
                           }}
-                        >Save</button>
+                        >Update</button>
                         <button
                           className="cancel-edit-btn styled-action-btn"
                           disabled={savingEdit}
                           onClick={() => setEditOrderId(null)}
-                        >Cancel</button>
+                        >Undo</button>
                       </>
                     ) : (
                       <>
@@ -420,7 +420,6 @@ const OpenOrdersTab = ({ futuresOpenOrders, handleSort, sortData, SortIndicator,
                           disabled={closingOrders[orderId]}
                           title="Cancel this order"
                         >
-                          <X size={14} />
                           {closingOrders[orderId] ? 'Cancelling...' : 'Cancel'}
                         </button>
                       </>
