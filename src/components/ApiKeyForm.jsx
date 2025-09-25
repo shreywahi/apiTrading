@@ -19,8 +19,8 @@ const ApiKeyForm = ({ onSubmit, loading }) => {
       <div className="api-key-form">
         <div className="form-header">
           <Key className="form-icon" size={32} />
-          <h2>API Authentication (v1.8.3)</h2>
-          <p>Enter your API credentials to view your data</p>
+          <h2>API Authentication (v1.8.4)</h2>
+          <p>Enter API credentials to login</p>
         </div>
         
         <form onSubmit={handleSubmit}>
@@ -71,9 +71,9 @@ const ApiKeyForm = ({ onSubmit, loading }) => {
         <div className="security-notice">
           <p><strong>Security Notice:</strong></p>
           <ul>
-            <li>Your credentials are only used locally and not stored</li>
-            <li>Ensure your key has only read permissions</li>
-            <li>Never share your secret with anyone</li>
+            <li>Credentials are only used locally and not stored</li>
+            <li>Ensure your key has futures trading permissions only</li>
+            <li>Never share your key and secret with anyone</li>
           </ul>
         </div>
       </div>
