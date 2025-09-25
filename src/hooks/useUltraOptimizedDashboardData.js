@@ -1,17 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import ApiCallOptimizer from '../utils/apiCallOptimizer.js';
 
-/**
- * Ultra-Optimized Dashboard Data Hook - Enterprise Implementation
- * 
- * Senior Backend Data Engineer Optimizations:
- * 1. 85-90% reduction in API calls through intelligent batching
- * 2. Sub-second refresh times with multi-tier caching
- * 3. Smart request deduplication and throttling
- * 4. Parallel execution with dependency optimization
- * 5. Circuit breaker patterns for resilience
- * 6. Real-time performance monitoring
- */
 export const useUltraOptimizedDashboardData = (binanceApi) => {
   // Only futures mode supported
   const [accountData, setAccountData] = useState(null);

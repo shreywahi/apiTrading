@@ -16,15 +16,11 @@ const OrdersSection = ({
   SortIndicator,
   formatDate,
   binanceApi,
-  onOrderCancelled,
-  activeMarket,
-  setActiveMarket
+  onOrderCancelled
 }) => {
   const [closingOrders, setClosingOrders] = useState({});
   const [showRateLimitMessage, setShowRateLimitMessage] = useState(false);
   const [optimisticallyRemovedOrders, setOptimisticallyRemovedOrders] = useState(new Set());
-  // activeMarket and setActiveMarket now come from Dashboard
-  const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
   const handleCloseOrder = async (order) => {
     const orderId = order.orderId || order.id;
@@ -284,9 +280,6 @@ const OpenOrdersTab = ({ futuresOpenOrders, handleSort, sortData, SortIndicator,
             <th onClick={() => handleSort && handleSort('open-orders', 'price')}>
               Price <SortIndicator tableType="open-orders" column="price" />
             </th>
-            <th onClick={() => handleSort && handleSort('open-orders', 'stopPrice')}>
-              Stop Price <SortIndicator tableType="open-orders" column="stopPrice" />
-            </th>
             <th onClick={() => handleSort && handleSort('open-orders', 'status')}>
               Status <SortIndicator tableType="open-orders" column="status" />
             </th>
@@ -330,12 +323,6 @@ const OpenOrdersTab = ({ futuresOpenOrders, handleSort, sortData, SortIndicator,
                   {order.price && parseFloat(order.price) > 0 ? 
                     `$${parseFloat(order.price).toLocaleString()}` : 
                     'Market'
-                  }
-                </td>
-                <td className="number-cell">
-                  {order.stopPrice && parseFloat(order.stopPrice) > 0 ? 
-                    `$${parseFloat(order.stopPrice).toLocaleString()}` : 
-                    '-'
                   }
                 </td>
                 <td>

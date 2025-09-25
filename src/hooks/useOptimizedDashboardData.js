@@ -1,15 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 
-/**
- * Optimized Dashboard Data Hook - Senior Engineer Implementation
- * 
- * Performance Optimizations:
- * 1. Selective data fetching based on refresh type (full vs incremental)
- * 2. Smart caching with TTL for price data
- * 3. Parallel non-blocking requests
- * 4. Minimal required data fetching
- * 5. Background updates for non-critical data
- */
 export const useOptimizedDashboardData = (binanceApi) => {
   // Core data states
   const [accountData, setAccountData] = useState(null);
