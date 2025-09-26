@@ -1,4 +1,4 @@
-import { RefreshCw, LogOut, User, Sun, Moon, Plus } from 'lucide-react';
+import { Activity, LogOut, User, Sun, Moon, Plus } from 'lucide-react';
 import './DashboardHeader.css';
 import logo from '../logo.jpg';
 import teamImg from '../team.jpg';
@@ -59,15 +59,15 @@ const DashboardHeader = ({
         </button>
 
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-          <span 
-            className={`auto-refresh-indicator ${autoRefreshActive ? 'active' : 'paused'}`}
+          <button
+            className="mobile-theme-btn"
             onClick={toggleAutoRefresh}
             title={autoRefreshActive ? 'Auto-refresh active - click to pause' : 'Auto-refresh paused - click to resume'}
-            style={{ marginBottom: 4 }}
+            style={{ background: autoRefreshActive ? 'rgba(34,197,94,0.2)' : 'rgba(255,193,7,0.8)', color: 'white', fontWeight: 600 }}
           >
-            <User size={10} />
-            {autoRefreshActive ? 'Live' : 'Paused'}
-          </span>
+            <Activity size={16} />
+            <span className="mobile-btn-text">{autoRefreshActive ? 'Live' : 'Paused'}</span>
+          </button>
         </div>
 
         <select 

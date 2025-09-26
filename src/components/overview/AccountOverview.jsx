@@ -88,9 +88,9 @@ const AccountOverview = ({
             <BarChart3 size={24} />
           </div>
           <div className="card-content">
-            <h3>Live Trading Center</h3>
+            <h3>Trading Center</h3>
             <p className="value">USD-M Futures</p>
-            <small className="sub-value">Place buy/sell orders</small>
+            <small className="sub-value">Live Futures Trading</small>
           </div>
         </div>
       </div>
