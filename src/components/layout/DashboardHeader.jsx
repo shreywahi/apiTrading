@@ -1,4 +1,4 @@
-import { RefreshCw, LogOut, Activity, Sun, Moon, Plus } from 'lucide-react';
+import { RefreshCw, LogOut, User, Sun, Moon, Plus } from 'lucide-react';
 import './DashboardHeader.css';
 import logo from '../logo.jpg';
 import teamImg from '../team.jpg';
@@ -37,7 +37,7 @@ const DashboardHeader = ({
               className="add-api-btn"
               title="Manage APIs"
             >
-              <Activity size={18} className="manage-api-icon" />
+              <User size={18} className="manage-api-icon" />
               <span className="btn-text">{nickname ? `${nickname} - Manage APIs` : 'Manage APIs'}</span>
             </button>
             <button onClick={onLogout} className="logout-btn">
@@ -65,7 +65,7 @@ const DashboardHeader = ({
             title={autoRefreshActive ? 'Auto-refresh active - click to pause' : 'Auto-refresh paused - click to resume'}
             style={{ marginBottom: 4 }}
           >
-            <Activity size={10} />
+            <User size={10} />
             {autoRefreshActive ? 'Live' : 'Paused'}
           </span>
         </div>

@@ -7,7 +7,7 @@ const ApiAccountLoginCard = ({ accounts, onLogin, onDelete }) => {
     <div className="api-account-login-card">
       <div className="form-header">
         <Key className="form-icon" size={32} />
-        <h2>API Authentication (v1.10.5)</h2>
+        <h2>API Authentication (v1.10.6)</h2>
         <p>Use existing account credentials to login</p>
       </div>
       <div className="account-list">

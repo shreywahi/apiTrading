@@ -4,40 +4,19 @@ import './PortfolioSection.css';
 
 const PortfolioSection = ({ 
   accountData,
-  totalValue,
-  futuresValue,
-  totalPnL,
   // Removed activeWalletTab and setActiveWalletTab
   hideSmallBalances,
   setHideSmallBalances,
-  formatCurrency,
   handleClosePosition
 }) => {
   const [closingSymbol, setClosingSymbol] = React.useState(null);
   return (
     <section className="expanded-section portfolio-section">
       <div className="section-header">
-        <h2>Futures Wallet Portfolio</h2>
+        <h2>Portfolio Overview</h2>
       </div>
       <div className="section-content">
-        <div className="portfolio-summary">
-          <div className="portfolio-stats">
-            <div className="stat-item">
-              <span className="label">Total Portfolio Value</span>
-              <span className="value">{formatCurrency(totalValue)}</span>
-              <small className="sub-value">Futures + Unrealized P&L</small>
-            </div>
-            <div className="stat-item">
-              <span className="label">Futures Wallet</span>
-              <span className="value">{formatCurrency(futuresValue)}</span>
-            </div>
-            <div className="stat-item">
-              <span className="label">Unrealized P&L</span>
-              <span className={`value ${totalPnL >= 0 ? 'positive' : 'negative'}`}> 
-                {totalPnL >= 0 ? '+' : ''}{formatCurrency(totalPnL)}
-              </span>
-            </div>
-          </div>
+          <div className="portfolio-summary">
           <div className="wallet-tabs">
             <div className="tab-header">
               <div className="wallet-buttons">
