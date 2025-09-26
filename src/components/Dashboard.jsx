@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import AccountManagerModal from './AccountManagerModal';
 
 // Custom hooks
 import { useUltraOptimizedDashboardData } from '../hooks/useUltraOptimizedDashboardData';
@@ -24,26 +25,48 @@ import { extendBinanceApiWithOptimizations } from '../utils/binanceOptimizer';
 import './DashboardLayout.css';
 import './CosmicBackground.css';
 
-const Dashboard = ({ binanceApi, onLogout }) => {
+const ACCOUNTS_KEY = 'binanceAccounts';
+
+function getStoredAccounts() {
+  try {
+    return JSON.parse(localStorage.getItem(ACCOUNTS_KEY)) || [];
+  } catch {
+    return [];
+  }
+}
+
+const Dashboard = ({ binanceApi, activeAccount, onLogout, onSwitchAccount }) => {
   // Refs for legacy handler
   const binanceApiRef = useRef(binanceApi);
   const fastRefreshRef = useRef(null);
-  useEffect(() => { binanceApiRef.current = binanceApi; }, [binanceApi]);
   // UI State
   const [expandedSection, setExpandedSection] = useState('portfolio');
   const [hideSmallBalances, setHideSmallBalances] = useState(true);
   const [activeWalletTab, setActiveWalletTab] = useState('futures');
   const [activeFuturesTab, setActiveFuturesTab] = useState('open-orders');
   const [darkMode, setDarkMode] = useState(true);
+  // Multi-account state
+  const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [accounts, setAccounts] = useState(getStoredAccounts());
   // Market mode: 'futures' (production) or 'spot' (dev)
   const marketMode = (import.meta.env.VITE_MARKET_MODE || 'futures').toLowerCase();
+
+  useEffect(() => {
+    binanceApiRef.current = binanceApi;
+  }, [binanceApi]);
+
+  // Force a full data refresh when account or API changes and modal is closed
+  useEffect(() => {
+    if (!accountModalOpen && typeof fetchData === 'function') {
+      fetchData();
+    }
+  }, [binanceApi, activeAccount, accountModalOpen]);
 
   // Performance optimization - extend API with optimizations on first load
   useEffect(() => {
     if (binanceApi && !binanceApi.isOptimized) {
       extendBinanceApiWithOptimizations(binanceApi);
       binanceApi.isOptimized = true;
-      
       // Check API permissions for better error handling
       binanceApi.checkApiPermissions?.()
         .then(permissions => {
@@ -57,6 +80,11 @@ const Dashboard = ({ binanceApi, onLogout }) => {
     }
   }, [binanceApi]);
 
+  // Keep accounts in sync with localStorage
+  useEffect(() => {
+    setAccounts(getStoredAccounts());
+  }, [accountModalOpen]);
+
   // Only use futures data and hooks in futures mode
   const [ordersSectionKey, setOrdersSectionKey] = useState(Date.now());
   const [activeMarket, setActiveMarket] = useState('futures');
@@ -64,17 +92,17 @@ const Dashboard = ({ binanceApi, onLogout }) => {
     accountData,
     futuresOpenOrders,
     futuresOrderHistory,
-    positionHistory,
-    tradeHistory,
-    transactionHistory,
-    fundingFeeHistory,
-    loading,
-    error,
     refreshing,
     fetchData,
     fastRefresh,
     refreshOrderData,
-    refresh
+    refresh,
+    loading,
+    error,
+    tradeHistory,
+    transactionHistory,
+    fundingFeeHistory,
+    positionHistory
   } = useUltraOptimizedDashboardData(binanceApi);
   useEffect(() => { fastRefreshRef.current = fastRefresh; }, [fastRefresh]);
 
@@ -229,7 +257,7 @@ const Dashboard = ({ binanceApi, onLogout }) => {
   return (
     <div className={`dashboard ${darkMode ? 'dark-mode' : ''}`}>
       <CosmicBackground darkMode={darkMode} />
-      
+
       <DashboardHeader
         darkMode={darkMode}
         setDarkMode={setDarkMode}
@@ -241,6 +269,22 @@ const Dashboard = ({ binanceApi, onLogout }) => {
         displayCurrency={displayCurrency}
         setDisplayCurrency={setDisplayCurrency}
         onLogout={onLogout}
+        onOpenAccountManager={() => setAccountModalOpen(true)}
+  nickname={activeAccount?.nickname}
+      />
+
+      <AccountManagerModal
+        isOpen={accountModalOpen}
+        onClose={() => setAccountModalOpen(false)}
+        onSwitchAccount={onSwitchAccount}
+        onAdd={acc => {
+          setAccounts(getStoredAccounts());
+        }}
+        activeAccount={activeAccount}
+        onDeleteActive={() => {
+          setActiveAccount(null);
+          if (typeof onLogout === 'function') onLogout();
+        }}
       />
 
       <div className="dashboard-content">

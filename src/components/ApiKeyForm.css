@@ -1,19 +1,126 @@
+/* Shared card style for both API form and existing account modal */
+.api-auth-card, .existing-account-card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px 0 rgba(80, 80, 160, 0.10), 0 1.5px 4px 0 rgba(80, 80, 160, 0.08);
+  padding: 2.5rem 2rem 2rem 2rem;
+  min-width: 340px;
+  max-width: 400px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.existing-account-card h2 {
+  color: #232946;
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+}
+
+.existing-account-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.existing-account-item {
+  background: #f7f7fa;
+  border-radius: 10px;
+  padding: 1.1rem 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 1px 2px 0 rgba(80,80,160,0.04);
+}
+
+.existing-account-item .nickname {
+  font-weight: 600;
+  color: #232946;
+}
+
+.existing-account-item .key {
+  font-size: 0.95rem;
+  color: #6b6b8a;
+  margin-top: 0.2rem;
+}
+
+.existing-account-item .login-btn {
+  background: linear-gradient(90deg, #6c63ff 0%, #48c6ef 100%);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1.2rem;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.existing-account-item .login-btn:hover {
+  background: linear-gradient(90deg, #48c6ef 0%, #6c63ff 100%);
+}
+
+.existing-account-divider {
+  color: #bdbddd;
+  font-weight: 600;
+  margin: 2.2rem 0 1.2rem 0;
+  text-align: center;
+  letter-spacing: 0.1em;
+}
+
+/* Layout for side-by-side card and form */
 .api-key-form-container {
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  padding: 20px;
+  padding: 32px 20px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.api-key-form-center-group {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+}
+
+@media (max-width: 900px) {
+  .api-key-form-container {
+    flex-direction: column;
+    gap: 32px;
+    padding: 32px 8px;
+  }
 }
 
 .api-key-form {
   background: white;
-  padding: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  padding: 2.5rem 2.5rem 2.2rem 2.5rem;
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.13);
   width: 100%;
-  max-width: 450px;
+  max-width: 410px;
+  min-width: 340px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+}
+/* OR separator for side-by-side layout */
+.or-separator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #b3b3c6;
+  letter-spacing: 0.04em;
+  user-select: none;
+  min-width: 32px;
 }
 
 .form-header {
@@ -313,63 +420,66 @@
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 900px) {
   .api-key-form-container {
-    padding: 10px;
-    align-items: center;      /* Keep vertical centering */
-    min-height: 100vh;        /* Ensure full viewport height */
-    padding-top: 0;           /* Remove extra top padding */
+    flex-direction: column;
+    padding: 32px 8px;
+    align-items: center;
   }
+  .api-key-form-center-group {
+    flex-direction: column;
+    gap: 16px;
+  }
+}
   
-  .api-key-form {
-    padding: 1.25rem;
-  }
-  
-  .form-header h2 {
-    font-size: 1.3rem;
-  }
-  
-  .form-header p {
-    font-size: 0.8rem;
-  }
-  
-  .quick-tip {
-    font-size: 0.75rem;
-    padding: 0.5rem;
-    margin-top: 0.75rem;
-  }
-  
-  .input-group {
-    margin-bottom: 1rem;
-  }
-  
-  .input-group label {
-    font-size: 0.85rem;
-    margin-bottom: 0.4rem;
-  }
-  
-  .input-group input {
-    padding: 9px 12px;
-    font-size: 0.85rem;
-  }
-  
-  .submit-btn, .demo-btn-large {
-    padding: 9px 18px;
-    font-size: 0.85rem;
-  }
-  
-  .security-notice {
-    padding: 0.6rem;
-    margin-top: 1.25rem;
-  }
-  
-  .security-notice p {
-    font-size: 0.8rem;
-  }
-  
-  .security-notice li {
-    font-size: 0.75rem;
-  }
+.api-key-form {
+  padding: 1.25rem;
+}
+
+.form-header h2 {
+  font-size: 1.3rem;
+}
+
+.form-header p {
+  font-size: 0.8rem;
+}
+
+.quick-tip {
+  font-size: 0.75rem;
+  padding: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.input-group {
+  margin-bottom: 1rem;
+}
+
+.input-group label {
+  font-size: 0.85rem;
+  margin-bottom: 0.4rem;
+}
+
+.input-group input {
+  padding: 9px 12px;
+  font-size: 0.85rem;
+}
+
+.submit-btn, .demo-btn-large {
+  padding: 9px 18px;
+  font-size: 0.85rem;
+}
+
+.security-notice {
+  padding: 0.6rem;
+  margin-top: 1.25rem;
+}
+
+.security-notice p {
+  font-size: 0.8rem;
+}
+
+.security-notice li {
+  font-size: 0.75rem;
 }
 
 @media (max-width: 360px) {

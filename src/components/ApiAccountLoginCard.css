@@ -1,0 +1,71 @@
+.api-account-login-card {
+  background: #23284a;
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+  padding: 2.5rem 2.5rem 2.2rem 2.5rem;
+  min-width: 370px;
+  max-width: 410px;
+  color: #e0e6f6;
+  margin: 4.5rem auto 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+}
+.api-account-login-card h2 {
+  font-size: 1.45rem;
+  font-weight: 700;
+  margin-bottom: 1.7rem;
+  color: #fff;
+  letter-spacing: 0.01em;
+}
+.account-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  margin-bottom: 1.7rem;
+}
+.account-item {
+  background: #181c2f;
+  border-radius: 8px;
+  padding: 1.1rem 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 2px solid transparent;
+  transition: border 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+}
+.account-item:hover {
+  border: 2px solid #6c63ff;
+  box-shadow: 0 4px 16px rgba(108,99,255,0.10);
+}
+.nickname {
+  font-weight: 600;
+  font-size: 1.08rem;
+  color: #6c63ff;
+  letter-spacing: 0.01em;
+}
+.api-key {
+  font-size: 0.97rem;
+  color: #a0aec0;
+  margin-left: 1.2rem;
+  font-family: 'JetBrains Mono', 'Fira Mono', 'Consolas', monospace;
+}
+.login-btn {
+  background: #3b82f6;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.45rem 1.2rem;
+  font-size: 1.01rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-left: 1.2rem;
+  box-shadow: 0 1px 4px rgba(59,130,246,0.08);
+}
+.login-btn:hover {
+  background: #2563eb;
+}

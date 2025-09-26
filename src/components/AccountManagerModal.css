@@ -1,0 +1,177 @@
+.account-modal-backdrop {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(24, 28, 47, 0.75);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.account-modal {
+  background: #23284a;
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+  padding: 2rem 2.5rem 1.5rem 2.5rem;
+  min-width: 350px;
+  max-width: 95vw;
+  color: #e0e6f6;
+  position: relative;
+  animation: modalPop 0.25s cubic-bezier(.23,1.01,.32,1);
+}
+
+@keyframes modalPop {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.account-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.2rem;
+}
+.account-modal-header h2 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 0;
+}
+.close-btn {
+  background: none;
+  border: none;
+  color: #e0e6f6;
+  font-size: 2rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.close-btn:hover {
+  color: #f56565;
+}
+.account-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+.account-card {
+  background: #181c2f;
+  border-radius: 8px;
+  padding: 1rem 1.2rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 2px solid transparent;
+  transition: border 0.2s;
+}
+.account-card.active {
+  border: 2px solid #6c63ff;
+}
+.account-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.nickname {
+  font-weight: 600;
+  font-size: 1.08rem;
+  color: #6c63ff;
+}
+.api-key {
+  font-size: 0.93rem;
+  color: #a0aec0;
+}
+.account-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.account-actions button {
+  padding: 0.25rem 0.8rem;
+  border-radius: 6px;
+  border: none;
+  font-weight: 600;
+  font-size: 0.97rem;
+  cursor: pointer;
+  background: #23284a;
+  color: #e0e6f6;
+  transition: background 0.2s, color 0.2s;
+}
+.account-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.account-actions .delete-btn {
+  background: #f56565;
+  color: #fff;
+}
+.account-actions .delete-btn:hover:not(:disabled) {
+  background: #e53e3e;
+}
+.account-actions button:hover:not(:disabled):not(.delete-btn) {
+  background: #6c63ff;
+  color: #fff;
+}
+.add-account-btn {
+  margin-top: 0.5rem;
+  background: #3b82f6;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1.2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.add-account-btn:hover {
+  background: #2563eb;
+}
+.add-account-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin-top: 0.7rem;
+}
+.add-account-form input {
+  padding: 0.4rem 0.7rem;
+  border-radius: 6px;
+  border: 1.5px solid #6c63ff;
+  background: #181c2f;
+  color: #e0e6f6;
+  font-size: 1rem;
+  outline: none;
+  transition: border 0.2s;
+}
+.add-account-form input:focus {
+  border: 2px solid #a084ff;
+}
+.add-account-form button[type="submit"] {
+  background: #48bb78;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.45rem 1.2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.add-account-form button[type="submit"]:hover {
+  background: #38a169;
+}
+.form-error {
+  color: #f56565;
+  font-size: 0.97rem;
+  margin-top: 0.2rem;
+}
+.no-accounts {
+  color: #a0aec0;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}

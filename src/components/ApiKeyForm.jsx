@@ -1,82 +1,181 @@
 import { useState } from 'react';
+import ApiAccountLoginCard from './ApiAccountLoginCard';
 import { Key, Eye, EyeOff } from 'lucide-react';
 import './ApiKeyForm.css';
 
-const ApiKeyForm = ({ onSubmit, loading }) => {
+const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
+  const [nickname, setNickname] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [apiSecret, setApiSecret] = useState('');
   const [showSecret, setShowSecret] = useState(false);
 
+  const [error, setError] = useState('');
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (apiKey.trim() && apiSecret.trim()) {
-      onSubmit({ apiKey: apiKey.trim(), apiSecret: apiSecret.trim() });
+    if (!nickname.trim() || !apiKey.trim() || !apiSecret.trim()) {
+      setError('All fields are required.');
+      return;
     }
+    // Prevent duplicate API key/secret
+    if (accounts && accounts.some(acc => acc.apiKey === apiKey.trim() && acc.apiSecret === apiSecret.trim())) {
+      setError('This API Key and Secret are already saved. Please use the existing account modal to login.');
+      return;
+    }
+    setError('');
+    onSubmit({ nickname: nickname.trim(), apiKey: apiKey.trim(), apiSecret: apiSecret.trim() });
   };
 
   return (
     <div className="api-key-form-container">
-      <div className="api-key-form">
-        <div className="form-header">
-          <Key className="form-icon" size={32} />
-          <h2>API Authentication (v1.9.1)</h2>
-          <p>Enter API credentials to login</p>
-        </div>
-        
-        <form onSubmit={handleSubmit}>
-          <div className="input-group">
-            <label htmlFor="apiKey">Key</label>
-            <input
-              id="apiKey"
-              type="text"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="Enter your Key"
-              required
-              disabled={loading}
-            />
-          </div>
-          
-          <div className="input-group">
-            <label htmlFor="apiSecret">Secret</label>
-            <div className="secret-input-wrapper">
-              <input
-                id="apiSecret"
-                type={showSecret ? 'text' : 'password'}
-                value={apiSecret}
-                onChange={(e) => setApiSecret(e.target.value)}
-                placeholder="Enter your Secret"
-                required
-                disabled={loading}
-                autoComplete="off"
-              />
-              <button
-                type="button"
-                className="toggle-visibility"
-                onClick={() => setShowSecret(!showSecret)}
-                disabled={loading}
-              >
-                {showSecret ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
+      {accounts && accounts.length > 0 ? (
+        <div className="api-key-form-center-group">
+          <ApiAccountLoginCard accounts={accounts} onLogin={onLoginAccount} />
+          <div className="or-separator">OR</div>
+          <div className="api-key-form">
+            <div className="form-header">
+              <Key className="form-icon" size={32} />
+              <h2>API Authentication (v1.10.0)</h2>
+              <p>Enter API credentials to login</p>
+            </div>
+            <form onSubmit={handleSubmit}>
+              {error && <div className="error-banner"><p>{error}</p></div>}
+              <div className="input-group">
+                <label htmlFor="apiKey">Key</label>
+                <input
+                  id="apiKey"
+                  type="text"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="Enter your Key"
+                  required
+                  disabled={loading}
+                />
+              </div>
+              <div className="input-group">
+                <label htmlFor="apiSecret">Secret</label>
+                <div className="secret-input-wrapper">
+                  <input
+                    id="apiSecret"
+                    type={showSecret ? 'text' : 'password'}
+                    value={apiSecret}
+                    onChange={(e) => setApiSecret(e.target.value)}
+                    placeholder="Enter your Secret"
+                    required
+                    disabled={loading}
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    className="toggle-visibility"
+                    onClick={() => setShowSecret(!showSecret)}
+                    disabled={loading}
+                  >
+                    {showSecret ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+              </div>
+              <div className="input-group">
+                <label htmlFor="nickname">Nickname</label>
+                <input
+                  id="nickname"
+                  type="text"
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                  placeholder="Account Nickname"
+                  required
+                  disabled={loading}
+                  maxLength={32}
+                />
+              </div>
+              <div className="button-group">
+                <button type="submit" className="submit-btn" disabled={loading || !nickname.trim() || !apiKey.trim() || !apiSecret.trim()}>
+                  {loading ? 'Connecting...' : 'Connect'}
+                </button>
+              </div>
+            </form>
+            <div className="security-notice">
+              <p><strong>Security Notice:</strong></p>
+              <ul>
+                <li>Credentials are only used locally and not stored</li>
+                <li>Ensure your key has futures trading permissions only</li>
+                <li>Never share your key and secret with anyone</li>
+              </ul>
             </div>
           </div>
-          
-          <div className="button-group">
-            <button type="submit" className="submit-btn" disabled={loading || !apiKey.trim() || !apiSecret.trim()}>
-              {loading ? 'Connecting...' : 'Connect'}
-            </button>
-          </div>
-        </form>
-        
-        <div className="security-notice">
-          <p><strong>Security Notice:</strong></p>
-          <ul>
-            <li>Credentials are only used locally and not stored</li>
-            <li>Ensure your key has futures trading permissions only</li>
-            <li>Never share your key and secret with anyone</li>
-          </ul>
         </div>
-      </div>
+      ) : (
+        <div className="api-key-form">
+          <div className="form-header">
+            <Key className="form-icon" size={32} />
+            <h2>API Authentication (v1.9.1)</h2>
+            <p>Enter API credentials to login</p>
+          </div>
+          <form onSubmit={handleSubmit}>
+            {error && <div className="error-banner"><p>{error}</p></div>}
+            <div className="input-group">
+              <label htmlFor="apiKey">Key</label>
+              <input
+                id="apiKey"
+                type="text"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="Enter your Key"
+                required
+                disabled={loading}
+              />
+            </div>
+            <div className="input-group">
+              <label htmlFor="apiSecret">Secret</label>
+              <div className="secret-input-wrapper">
+                <input
+                  id="apiSecret"
+                  type={showSecret ? 'text' : 'password'}
+                  value={apiSecret}
+                  onChange={(e) => setApiSecret(e.target.value)}
+                  placeholder="Enter your Secret"
+                  required
+                  disabled={loading}
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  className="toggle-visibility"
+                  onClick={() => setShowSecret(!showSecret)}
+                  disabled={loading}
+                >
+                  {showSecret ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </div>
+            <div className="input-group">
+              <label htmlFor="nickname">Nickname</label>
+              <input
+                id="nickname"
+                type="text"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                placeholder="Account Nickname"
+                required
+                disabled={loading}
+                maxLength={32}
+              />
+            </div>
+            <div className="button-group">
+              <button type="submit" className="submit-btn" disabled={loading || !nickname.trim() || !apiKey.trim() || !apiSecret.trim()}>
+                {loading ? 'Connecting...' : 'Connect'}
+              </button>
+            </div>
+          </form>
+          <div className="security-notice">
+            <p><strong>Security Notice:</strong></p>
+            <ul>
+              <li>Credentials are only used locally and not stored</li>
+              <li>Ensure your key has futures trading permissions only</li>
+              <li>Never share your key and secret with anyone</li>
+            </ul>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

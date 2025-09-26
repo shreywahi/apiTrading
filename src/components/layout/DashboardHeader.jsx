@@ -3,6 +3,7 @@ import './DashboardHeader.css';
 import logo from '../logo.jpg';
 import teamImg from '../team.jpg';
 
+
 const DashboardHeader = ({
   darkMode,
   setDarkMode,
@@ -13,14 +14,10 @@ const DashboardHeader = ({
   toggleAutoRefresh,
   displayCurrency,
   setDisplayCurrency,
-  onLogout
+  onLogout,
+  onOpenAccountManager,
+  nickname
 }) => {
-  
-  const handleOpenApiForm = () => {
-    // Open the API key form in a new tab, respecting subdirectory (e.g. /apiTrading/)
-    const base = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/');
-    window.open(base, '_blank');
-  };
 
   return (
     <>
@@ -36,15 +33,14 @@ const DashboardHeader = ({
             <img src={teamImg} alt="Team" className="header-team-img" />
           </div>
 
-          {/* Right section: Add API and Logout */}
+          {/* Right section: Manage API and Logout */}
           <div className="header-right">
             <button 
-              onClick={handleOpenApiForm} 
+              onClick={onOpenAccountManager}
               className="add-api-btn"
-              title="Add another API key"
+              title="Manage APIs"
             >
-              <Plus size={14} />
-              <span className="btn-text">New API Dashboard</span>
+              <span className="btn-text">{nickname ? `${nickname} - Manage APIs` : 'Manage APIs'}</span>
             </button>
             <button onClick={onLogout} className="logout-btn">
               <LogOut size={14} />
