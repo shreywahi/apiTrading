@@ -1,3 +1,32 @@
+.account-login-title {
+  text-align: center;
+  width: 100%;
+  display: block;
+}
+
+.account-login-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+  margin-left: 1.2rem;
+}
+.delete-btn {
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.45rem 1.1rem;
+  font-size: 1.01rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-left: 0.5rem;
+  box-shadow: 0 1px 4px rgba(239,68,68,0.08);
+}
+.delete-btn:hover {
+  background: #b91c1c;
+}
 .api-account-login-card {
   background: #23284a;
   border-radius: 14px;

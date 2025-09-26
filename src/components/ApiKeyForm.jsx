@@ -6,6 +6,12 @@ import { Key, Eye, EyeOff } from 'lucide-react';
 import './ApiKeyForm.css';
 
 const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
+  // Remove account by nickname
+  const handleDeleteAccount = (nickname) => {
+    const updated = accounts.filter(acc => acc.nickname !== nickname);
+    localStorage.setItem('binanceAccounts', JSON.stringify(updated));
+    window.location.reload(); // quick way to refresh state everywhere
+  };
   const [nickname, setNickname] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [apiSecret, setApiSecret] = useState('');
@@ -41,12 +47,12 @@ const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
       <div className="api-key-form-container">
       {accounts && accounts.length > 0 ? (
         <div className="api-key-form-center-group">
-          <ApiAccountLoginCard accounts={accounts} onLogin={onLoginAccount} />
+          <ApiAccountLoginCard accounts={accounts} onLogin={onLoginAccount} onDelete={handleDeleteAccount} />
           <div className="or-separator">OR</div>
           <div className="api-key-form">
             <div className="form-header">
               <Key className="form-icon" size={32} />
-              <h2>API Authentication (v1.10.2)</h2>
+              <h2>API Authentication (v1.10.3)</h2>
               <p>Enter API credentials to login</p>
             </div>
             <form onSubmit={handleSubmit}>
@@ -119,7 +125,7 @@ const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
         <div className="api-key-form">
           <div className="form-header">
             <Key className="form-icon" size={32} />
-            <h2>API Authentication (v1.10.2)</h2>
+            <h2>API Authentication (v1.10.3)</h2>
             <p>Enter API credentials to login</p>
           </div>
           <form onSubmit={handleSubmit}>
