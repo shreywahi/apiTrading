@@ -17,6 +17,7 @@ const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
   const [apiSecret, setApiSecret] = useState('');
   const [showSecret, setShowSecret] = useState(false);
   const [error, setError] = useState(null);
+  const [showApiForm, setShowApiForm] = useState(accounts.length === 0);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -45,11 +46,19 @@ const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
     <>
       <CosmicBackground darkMode={true} />
       <div className="api-key-form-container">
-      {accounts && accounts.length > 0 ? (
-        <div className="api-key-form-center-group">
-          <ApiAccountLoginCard accounts={accounts} onLogin={onLoginAccount} onDelete={handleDeleteAccount} />
-          <div className="or-separator">OR</div>
-          <div className="api-key-form">
+        {accounts && accounts.length > 0 && !showApiForm ? (
+          <div className="api-key-form-center-group vertical-center-group">
+            <ApiAccountLoginCard accounts={accounts} onLogin={onLoginAccount} onDelete={handleDeleteAccount} />
+            <div className="or-separator-vertical">OR</div>
+            <div className="api-login-different-btn-group">
+              <button className="login-different-btn" onClick={() => setShowApiForm(true)} type="button">
+                Login with different account
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="api-key-form-center-group vertical-center-group">
+            <div className="api-key-form">
             <div className="form-header">
               <Key className="form-icon" size={32} />
               <h2>API Authentication (v1.10.4)</h2>
@@ -109,7 +118,7 @@ const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
                   {loading ? 'Connecting...' : 'Connect'}
                 </button>
               </div>
-            {error && <div className="api-form-error-message">{error}</div>}
+              {error && <div className="api-form-error-message">{error}</div>}
             </form>
             <div className="security-notice">
               <p><strong>Security Notice:</strong></p>
@@ -120,79 +129,18 @@ const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
               </ul>
             </div>
           </div>
-        </div>
-      ) : (
-        <div className="api-key-form">
-          <div className="form-header">
-            <Key className="form-icon" size={32} />
-            <h2>API Authentication (v1.10.4)</h2>
-            <p>Enter API credentials to login</p>
+            {accounts && accounts.length > 0 && (
+              <>
+                <div className="or-separator-vertical">OR</div>
+                <div className="api-login-different-btn-group">
+                  <button className="login-different-btn" onClick={() => setShowApiForm(false)} type="button">
+                    Login with existing account
+                  </button>
+                </div>
+              </>
+            )}
           </div>
-          <form onSubmit={handleSubmit}>
-            <div className="input-group">
-              <label htmlFor="apiKey">Key</label>
-              <input
-                id="apiKey"
-                type="text"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Enter your Key"
-                required
-                disabled={loading}
-              />
-            </div>
-            <div className="input-group">
-              <label htmlFor="apiSecret">Secret</label>
-              <div className="secret-input-wrapper">
-                <input
-                  id="apiSecret"
-                  type={showSecret ? 'text' : 'password'}
-                  value={apiSecret}
-                  onChange={(e) => setApiSecret(e.target.value)}
-                  placeholder="Enter your Secret"
-                  required
-                  disabled={loading}
-                  autoComplete="off"
-                />
-                <button
-                  type="button"
-                  className="toggle-visibility"
-                  onClick={() => setShowSecret(!showSecret)}
-                  disabled={loading}
-                >
-                  {showSecret ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              </div>
-            </div>
-            <div className="input-group">
-              <label htmlFor="nickname">Nickname</label>
-              <input
-                id="nickname"
-                type="text"
-                value={nickname}
-                onChange={(e) => setNickname(e.target.value)}
-                placeholder="Account Nickname"
-                required
-                disabled={loading}
-                maxLength={32}
-              />
-            </div>
-            <div className="button-group">
-              <button type="submit" className="submit-btn" disabled={loading || !nickname.trim() || !apiKey.trim() || !apiSecret.trim()}>
-                {loading ? 'Connecting...' : 'Connect'}
-              </button>
-            </div>
-          </form>
-          <div className="security-notice">
-            <p><strong>Security Notice:</strong></p>
-            <ul>
-              <li>Credentials are only used locally and not stored</li>
-              <li>Ensure your key has futures trading permissions only</li>
-              <li>Never share your key and secret with anyone</li>
-            </ul>
-          </div>
-        </div>
-      )}
+        )}
       </div>
     </>
   );

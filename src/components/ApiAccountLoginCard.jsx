@@ -1,10 +1,15 @@
 
+import { Key } from 'lucide-react';
 import './ApiAccountLoginCard.css';
 
 const ApiAccountLoginCard = ({ accounts, onLogin, onDelete }) => {
   return (
     <div className="api-account-login-card">
-  <h2 className="account-login-title">Use an existing account</h2>
+      <div className="form-header">
+        <Key className="form-icon" size={32} />
+        <h2>API Authentication (v1.10.4)</h2>
+        <p>Use existing account credentials to login</p>
+      </div>
       <div className="account-list">
         {accounts.map(acc => (
           <div className="account-list-item" key={acc.nickname}>
