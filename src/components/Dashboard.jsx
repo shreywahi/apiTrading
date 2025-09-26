@@ -282,7 +282,6 @@ const Dashboard = ({ binanceApi, activeAccount, onLogout, onSwitchAccount }) => 
         }}
         activeAccount={activeAccount}
         onDeleteActive={() => {
-          setActiveAccount(null);
           if (typeof onLogout === 'function') onLogout();
         }}
       />

@@ -1,3 +1,5 @@
+import './CosmicBackground.css';
+import CosmicBackground from './CosmicBackground';
 import { useState } from 'react';
 import ApiAccountLoginCard from './ApiAccountLoginCard';
 import { Key, Eye, EyeOff } from 'lucide-react';
@@ -17,7 +19,9 @@ const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
   };
 
   return (
-    <div className="api-key-form-container">
+    <>
+      <CosmicBackground darkMode={true} />
+      <div className="api-key-form-container">
       {accounts && accounts.length > 0 ? (
         <div className="api-key-form-center-group">
           <ApiAccountLoginCard accounts={accounts} onLogin={onLoginAccount} />
@@ -25,7 +29,7 @@ const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
           <div className="api-key-form">
             <div className="form-header">
               <Key className="form-icon" size={32} />
-              <h2>API Authentication (v1.10.0)</h2>
+              <h2>API Authentication (v1.10.1)</h2>
               <p>Enter API credentials to login</p>
             </div>
             <form onSubmit={handleSubmit}>
@@ -97,7 +101,7 @@ const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
         <div className="api-key-form">
           <div className="form-header">
             <Key className="form-icon" size={32} />
-            <h2>API Authentication (v1.10.0)</h2>
+            <h2>API Authentication (v1.10.1)</h2>
             <p>Enter API credentials to login</p>
           </div>
           <form onSubmit={handleSubmit}>
@@ -165,7 +169,8 @@ const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 

@@ -75,11 +75,7 @@ const AccountManagerModal = ({ isOpen, onClose, onSwitchAccount, onAdd, activeAc
     setAccounts(updated);
     setStoredAccounts(updated);
     if (activeAccount?.nickname === nickname) {
-      if (updated.length > 0) {
-        onSwitch(updated[0]);
-      } else {
-        if (onDeleteActive) onDeleteActive();
-      }
+      if (onDeleteActive) onDeleteActive();
     }
   };
 

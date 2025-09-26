@@ -1,5 +1,4 @@
-/* Shared card style for both API form and existing account modal */
-.api-auth-card, .existing-account-card {
+.api-account-login-card {
   background: #fff;
   border-radius: 16px;
   box-shadow: 0 4px 24px 0 rgba(80, 80, 160, 0.10), 0 1.5px 4px 0 rgba(80, 80, 160, 0.08);
@@ -11,43 +10,55 @@
   flex-direction: column;
   align-items: stretch;
 }
-
-.existing-account-card h2 {
-  color: #232946;
-  font-size: 1.3rem;
+.api-account-login-card h2 {
+  color: #232946 !important;
   font-weight: 700;
+  font-size: 1.3rem;
   margin-bottom: 1.5rem;
 }
-
-.existing-account-list {
+.api-account-login-card h2, .existing-account-card h2 {
+  color: #232946 !important;
+  font-weight: 700;
+}
+/* Account list for existing accounts */
+.account-list {
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
+  gap: 16px;
 }
 
-.existing-account-item {
-  background: #f7f7fa;
-  border-radius: 10px;
-  padding: 1.1rem 1.2rem;
+.account-list-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: 0 1px 2px 0 rgba(80,80,160,0.04);
+  background: #f7f8fa;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(80,80,160,0.06);
+  padding: 1.1rem 1.2rem;
+  transition: box-shadow 0.2s, background 0.2s;
+  border: 1.5px solid #e3e6f0;
 }
-
-.existing-account-item .nickname {
+.account-list-item:hover {
+  background: #eef2fb;
+  box-shadow: 0 4px 16px rgba(80,80,160,0.10);
+}
+.account-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.account-list-item .nickname {
   font-weight: 600;
   color: #232946;
+  margin-bottom: 2px;
 }
-
-.existing-account-item .key {
-  font-size: 0.95rem;
-  color: #6b6b8a;
-  margin-top: 0.2rem;
+.account-list-item .key {
+  color: #444b5a;
+  font-size: 0.97em;
 }
-
-.existing-account-item .login-btn {
-  background: linear-gradient(90deg, #6c63ff 0%, #48c6ef 100%);
+.account-list-item .login-btn {
+  margin-left: 18px;
+  background: #3b82f6;
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -57,16 +68,14 @@
   cursor: pointer;
   transition: background 0.2s;
 }
-.existing-account-item .login-btn:hover {
-  background: linear-gradient(90deg, #48c6ef 0%, #6c63ff 100%);
+.account-list-item .login-btn:hover {
+  background: #2563eb;
 }
-
-.existing-account-divider {
-  color: #bdbddd;
-  font-weight: 600;
-  margin: 2.2rem 0 1.2rem 0;
-  text-align: center;
-  letter-spacing: 0.1em;
+#root {
+  background: transparent !important;
+}
+body {
+  background: transparent !important;
 }
 
 /* Layout for side-by-side card and form */
@@ -76,7 +85,7 @@
   align-items: center;
   min-height: 100vh;
   padding: 32px 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: transparent;
 }
 
 .api-key-form-center-group {
@@ -85,6 +94,35 @@
   align-items: center;
   justify-content: center;
   gap: 32px;
+}
+
+/* Fix for existing account card contrast */
+.api-account-login-card, .existing-account-card {
+  color: #232946;
+}
+.api-account-login-card h2, .existing-account-card h2 {
+  color: #232946;
+}
+.api-account-login-card .nickname, .existing-account-card .nickname {
+  color: #232946;
+  font-weight: 600;
+}
+.api-account-login-card .key, .existing-account-card .key {
+  color: #444b5a;
+}
+.api-account-login-card .login-btn, .existing-account-card .login-btn {
+  background: #3b82f6;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1.2rem;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.api-account-login-card .login-btn:hover, .existing-account-card .login-btn:hover {
+  background: #2563eb;
 }
 
 @media (max-width: 900px) {
@@ -500,4 +538,11 @@
     padding: 8px 16px;
     font-size: 0.8rem;
   }
+}
+html {
+  background: transparent !important;
+}
+
+.cosmic-bg {
+  z-index: -9999 !important;
 }
