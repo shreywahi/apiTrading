@@ -9,20 +9,11 @@ const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
   const [apiSecret, setApiSecret] = useState('');
   const [showSecret, setShowSecret] = useState(false);
 
-  const [error, setError] = useState('');
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!nickname.trim() || !apiKey.trim() || !apiSecret.trim()) {
-      setError('All fields are required.');
-      return;
+    if (nickname.trim() && apiKey.trim() && apiSecret.trim()) {
+      onSubmit({ nickname: nickname.trim(), apiKey: apiKey.trim(), apiSecret: apiSecret.trim() });
     }
-    // Prevent duplicate API key/secret
-    if (accounts && accounts.some(acc => acc.apiKey === apiKey.trim() && acc.apiSecret === apiSecret.trim())) {
-      setError('This API Key and Secret are already saved. Please use the existing account modal to login.');
-      return;
-    }
-    setError('');
-    onSubmit({ nickname: nickname.trim(), apiKey: apiKey.trim(), apiSecret: apiSecret.trim() });
   };
 
   return (
@@ -38,7 +29,6 @@ const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
               <p>Enter API credentials to login</p>
             </div>
             <form onSubmit={handleSubmit}>
-              {error && <div className="error-banner"><p>{error}</p></div>}
               <div className="input-group">
                 <label htmlFor="apiKey">Key</label>
                 <input
@@ -107,11 +97,10 @@ const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
         <div className="api-key-form">
           <div className="form-header">
             <Key className="form-icon" size={32} />
-            <h2>API Authentication (v1.9.1)</h2>
+            <h2>API Authentication (v1.10.0)</h2>
             <p>Enter API credentials to login</p>
           </div>
           <form onSubmit={handleSubmit}>
-            {error && <div className="error-banner"><p>{error}</p></div>}
             <div className="input-group">
               <label htmlFor="apiKey">Key</label>
               <input
