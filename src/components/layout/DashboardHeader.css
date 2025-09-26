@@ -1,3 +1,20 @@
+/* Always show the manage-api-icon, hide text on small screens */
+.manage-api-icon {
+  margin-right: 6px;
+  vertical-align: middle;
+  color: #fff;
+}
+
+@media (max-width: 680px) {
+  .manage-api-icon {
+    margin-right: 0;
+    display: inline-block;
+    font-size: 1.2em;
+  }
+  .btn-text {
+    display: none;
+  }
+}
 .dashboard-header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
@@ -33,7 +50,7 @@
   object-fit: cover;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 680px) {
   .header-content {
     padding: 0 0.5rem;
   }
@@ -130,19 +147,19 @@
 @media (max-width: 900px) {
   .header-team-img {
     max-width: 80px;
-    max-height: 40px;
-    margin: 0 0.5rem;
+    height: auto;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.13);
+    margin-left: 0.5rem;
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 680px) {
   .header-center {
     flex: none;
     margin: 0 0.2rem;
   }
   .header-team-img {
-    max-width: 48px;
-    max-height: 24px;
+    max-width: 80px;
     margin: 0 0.2rem;
   }
 }

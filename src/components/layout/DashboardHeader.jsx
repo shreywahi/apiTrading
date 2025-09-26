@@ -7,9 +7,6 @@ import teamImg from '../team.jpg';
 const DashboardHeader = ({
   darkMode,
   setDarkMode,
-  handleManualRefresh,
-  refreshing,
-  autoRefreshTimer,
   autoRefreshActive,
   toggleAutoRefresh,
   displayCurrency,
@@ -40,6 +37,7 @@ const DashboardHeader = ({
               className="add-api-btn"
               title="Manage APIs"
             >
+              <Activity size={18} className="manage-api-icon" />
               <span className="btn-text">{nickname ? `${nickname} - Manage APIs` : 'Manage APIs'}</span>
             </button>
             <button onClick={onLogout} className="logout-btn">
