@@ -1,3 +1,21 @@
+/* Error message styling for ApiKeyForm */
+
+.api-form-error-message {
+  color: #e53935;
+  font-size: 0.78rem;
+  font-weight: 500;
+  margin-top: 8px;
+  margin-bottom: 0;
+  text-align: center;
+  background: none;
+  border: none;
+  padding: 0;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  max-width: 100%;
+  display: block;
+}
 .api-account-login-card {
   background: #fff;
   border-radius: 16px;
@@ -139,7 +157,7 @@ body {
   border-radius: 14px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.13);
   width: 100%;
-  max-width: 410px;
+  max-width: 480px;
   min-width: 340px;
   margin: 0;
   display: flex;

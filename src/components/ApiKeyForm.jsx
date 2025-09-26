@@ -10,10 +10,27 @@ const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
   const [apiKey, setApiKey] = useState('');
   const [apiSecret, setApiSecret] = useState('');
   const [showSecret, setShowSecret] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (nickname.trim() && apiKey.trim() && apiSecret.trim()) {
+      const existing = accounts.find(acc => acc.apiKey === apiKey && acc.apiSecret === apiSecret);
+      if (existing) {
+        if (existing.nickname !== nickname) {
+          setError('Credentials already exists with different nickname');
+          return;
+        }
+      }
+      // Check for duplicate nickname
+      if (accounts.some(acc => acc.nickname === nickname)) {
+        // If the nickname exists, but with different credentials, block it
+        const acc = accounts.find(acc => acc.nickname === nickname);
+        if (acc.apiKey !== apiKey || acc.apiSecret !== apiSecret) {
+          setError('Nickname already exists with different credentials');
+          return;
+        }
+      }
       onSubmit({ nickname: nickname.trim(), apiKey: apiKey.trim(), apiSecret: apiSecret.trim() });
     }
   };
@@ -29,7 +46,7 @@ const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
           <div className="api-key-form">
             <div className="form-header">
               <Key className="form-icon" size={32} />
-              <h2>API Authentication (v1.10.1)</h2>
+              <h2>API Authentication (v1.10.2)</h2>
               <p>Enter API credentials to login</p>
             </div>
             <form onSubmit={handleSubmit}>
@@ -86,6 +103,7 @@ const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
                   {loading ? 'Connecting...' : 'Connect'}
                 </button>
               </div>
+            {error && <div className="api-form-error-message">{error}</div>}
             </form>
             <div className="security-notice">
               <p><strong>Security Notice:</strong></p>
@@ -101,7 +119,7 @@ const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
         <div className="api-key-form">
           <div className="form-header">
             <Key className="form-icon" size={32} />
-            <h2>API Authentication (v1.10.1)</h2>
+            <h2>API Authentication (v1.10.2)</h2>
             <p>Enter API credentials to login</p>
           </div>
           <form onSubmit={handleSubmit}>
