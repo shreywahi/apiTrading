@@ -96,8 +96,8 @@ const OrdersSection = ({
 
 
       <div className="section-header">
-        <h2>Orders Management</h2>
-        <p className="section-description">Complete trading history from Binance USD-M Futures markets</p>
+        <h2>Order Management</h2>
+        <p className="section-description">Orders in USD-M Futures (click column headers to sort table data)</p>
         {showRateLimitMessage && (
           <div className="rate-limit-message">
             Rate limit protection active. Please wait 3 seconds between order cancellations to prevent API errors.
@@ -413,14 +413,14 @@ const OpenOrdersTab = ({ futuresOpenOrders, handleSort, sortData, SortIndicator,
                           }}
                           disabled={closingOrders[orderId]}
                           title="Edit this order"
-                        >Edit</button>
+                        >Edit Order</button>
                         <button
                           className={`close-order-btn styled-action-btn ${closingOrders[orderId] ? 'cancelling' : ''}`}
                           onClick={() => handleCloseOrder(order)}
                           disabled={closingOrders[orderId]}
                           title="Cancel this order"
                         >
-                          {closingOrders[orderId] ? 'Cancelling...' : 'Cancel'}
+                          {closingOrders[orderId] ? 'Cancelling...' : 'Cancel Order'}
                         </button>
                       </>
                     )}

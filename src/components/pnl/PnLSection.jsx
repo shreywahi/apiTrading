@@ -54,9 +54,9 @@ const CurrentPositions = ({ positionHistory, handleSort, sortData, SortIndicator
   const openPositions = positionHistory.filter(position => Math.abs(parseFloat(position.positionAmt)) > 0);
   return (
     <div className="current-positions">
-      <h4>Current Positions ({openPositions.length} positions)</h4>
+      <h4>Current Positions ({openPositions.length} open)</h4>
       <p className="futures-description">
-        Current open positions in USD-M Futures (click column headers to sort)
+        Current open positions in USD-M Futures (click column headers to sort table data)
       </p>
       <div className="positions-table-container">
         <table className="futures-table">

@@ -52,7 +52,7 @@ const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
             <div className="or-separator-vertical">OR</div>
             <div className="api-login-different-btn-group">
               <button className="login-different-btn" onClick={() => setShowApiForm(true)} type="button">
-                Login with different account
+                Add another account
               </button>
             </div>
           </div>
@@ -61,7 +61,7 @@ const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
             <div className="api-key-form">
             <div className="form-header">
               <Key className="form-icon" size={32} />
-              <h2>API Authentication (v1.10.8)</h2>
+              <h2>API Authentication (v1.10.9)</h2>
               <p>Enter API credentials to login</p>
             </div>
             <form onSubmit={handleSubmit}>
@@ -79,7 +79,7 @@ const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
               </div>
               <div className="input-group">
                 <label htmlFor="apiSecret">Secret</label>
-                <div className="secret-input-wrapper">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <input
                     id="apiSecret"
                     type={showSecret ? 'text' : 'password'}
@@ -89,15 +89,22 @@ const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
                     required
                     disabled={loading}
                     autoComplete="off"
+                    style={{ flex: 1, marginRight: '0.5rem' }}
                   />
-                  <button
-                    type="button"
-                    className="toggle-visibility"
-                    onClick={() => setShowSecret(!showSecret)}
-                    disabled={loading}
+                  <span
+                    onClick={() => setShowSecret((prev) => !prev)}
+                    style={{
+                      cursor: 'pointer',
+                      color: '#888',
+                      display: 'flex',
+                      alignItems: 'center',
+                      height: '100%',
+                    }}
+                    aria-label={showSecret ? 'Hide secret' : 'Show secret'}
+                    role="button"
                   >
                     {showSecret ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
+                  </span>
                 </div>
               </div>
               <div className="input-group">
@@ -123,9 +130,9 @@ const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
             <div className="security-notice">
               <p><strong>Security Notice:</strong></p>
               <ul>
-                <li>Credentials are only used locally and not stored</li>
-                <li>Ensure your key has futures trading permissions only</li>
-                <li>Never share your key and secret with anyone</li>
+                <li>Credentials are used only locally</li>
+                <li>Ensure key has Futures permissions enabled</li>
+                <li>Never share key and secret with anyone</li>
               </ul>
             </div>
           </div>
@@ -134,7 +141,7 @@ const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
                 <div className="or-separator-vertical">OR</div>
                 <div className="api-login-different-btn-group">
                   <button className="login-different-btn" onClick={() => setShowApiForm(false)} type="button">
-                    Login with existing account
+                    Use an existing account
                   </button>
                 </div>
               </>
