@@ -61,7 +61,7 @@ const ApiKeyForm = ({ onSubmit, loading, accounts = [], onLoginAccount }) => {
             <div className="api-key-form">
             <div className="form-header">
               <Key className="form-icon" size={32} />
-              <h2>API Authentication (v1.10.9)</h2>
+              <h2>API Authentication (v1.11.0)</h2>
               <p>Enter API credentials to login</p>
             </div>
             <form onSubmit={handleSubmit}>

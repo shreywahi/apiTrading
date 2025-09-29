@@ -13,7 +13,8 @@ const DashboardHeader = ({
   setDisplayCurrency,
   onLogout,
   onOpenAccountManager,
-  nickname
+  nickname,
+  onUnlockTelegramSection
 }) => {
 
   return (
@@ -27,7 +28,24 @@ const DashboardHeader = ({
 
           {/* Center section: Team image */}
           <div className="header-center">
-            <img src={teamImg} alt="Team" className="header-team-img" />
+            <img
+              src={teamImg}
+              alt="Team"
+              className="header-team-img"
+              onClick={() => {
+                if (!window.__teamClickTimes) window.__teamClickTimes = [];
+                const now = Date.now();
+                window.__teamClickTimes = window.__teamClickTimes.filter(t => now - t < 2000);
+                window.__teamClickTimes.push(now);
+                if (window.__teamClickTimes.length >= 5) {
+                  window.__teamClickTimes = [];
+                  if (typeof onUnlockTelegramSection === 'function') {
+                    onUnlockTelegramSection();
+                  }
+                }
+              }}
+              style={{ cursor: 'pointer' }}
+            />
           </div>
 
           {/* Right section: Manage API and Logout */}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import TelegramBotInteraction from './TelegramBotInteraction';
 import AccountManagerModal from './AccountManagerModal';
 
 // Custom hooks
@@ -36,6 +37,12 @@ function getStoredAccounts() {
 }
 
 const Dashboard = ({ binanceApi, activeAccount, onLogout, onSwitchAccount }) => {
+  // Telegram Bot unlock state
+  const [telegramUnlocked, setTelegramUnlocked] = useState(false);
+  const handleUnlockTelegramSection = () => {
+    setTelegramUnlocked(true);
+    setExpandedSection('telegram');
+  };
   // Refs for legacy handler
   const binanceApiRef = useRef(binanceApi);
   const fastRefreshRef = useRef(null);
@@ -270,7 +277,8 @@ const Dashboard = ({ binanceApi, activeAccount, onLogout, onSwitchAccount }) => 
         setDisplayCurrency={setDisplayCurrency}
         onLogout={onLogout}
         onOpenAccountManager={() => setAccountModalOpen(true)}
-  nickname={activeAccount?.nickname}
+        nickname={activeAccount?.nickname}
+        onUnlockTelegramSection={handleUnlockTelegramSection}
       />
 
       <AccountManagerModal
@@ -384,6 +392,17 @@ const Dashboard = ({ binanceApi, activeAccount, onLogout, onSwitchAccount }) => 
           </TradingErrorBoundary>
         )}
 
+        {/* Telegram Bot Section (conditional) */}
+          {telegramUnlocked && expandedSection === 'telegram' && (
+            <div className="expanded-section">
+              <div className="section-header">
+                <h2>Bot Interaction</h2>
+              </div>
+              <div className="section-content">
+                <TelegramBotInteraction />
+              </div>
+            </div>
+          )}
       </div>
     </div>
   );
